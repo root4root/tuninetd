@@ -1,5 +1,3 @@
-//Author: root4root@gmail.com
-
 int tun_alloc(char *dev, int flags) 
 {
     struct ifreq ifr;
@@ -7,7 +5,7 @@ int tun_alloc(char *dev, int flags)
     char *clonedev = "/dev/net/tun";
 
     if ( (fd = open(clonedev, O_RDWR)) < 0 ) {
-        my_err("Unable to open clonable device %s", clonedev);
+        my_err("Fatal error. Unable to open clonable device %s", clonedev);
         return fd;
     }
  
@@ -32,7 +30,7 @@ int cread(int fd, char *buf, int n)
     int nread;
 
     if ((nread = read(fd, buf, n)) < 0) {
-        my_err("Error, while reading data. Abort.");
+        my_err("Fatal error. Problems, while reading data.");
         exit(1);
     }
   
@@ -47,7 +45,7 @@ void *tun_x(void *x_void_ptr)
     
  
     if ( (tap_fd = tun_alloc(globcfg.dev_name, globcfg.dev_mode | IFF_NO_PI)) < 0 ) {
-        my_err("Error connecting to tun/tap interface %s. Abort.", globcfg.dev_name);
+        my_err("Fatal error. Connecting to tun/tap interface %s failed.", globcfg.dev_name);
         exit(1);
     }
     
@@ -55,7 +53,7 @@ void *tun_x(void *x_void_ptr)
         nread = cread(tap_fd, buffer, BUFSIZE);
         
         if (globcfg.pcap_filter != NULL) {
-            usleep(15000); //Wait for libpcap time out.
+            usleep(15000); //Wait for libpcap timeout.
             if ( (curts - ts) < 2 ) {
                 do_debug("Read %d bytes from the tap interface\n", nread);
                 break;

@@ -1,5 +1,3 @@
-//Author: root4root@gmail.com
-
 void do_debug(char *msg, ...)
 {
     if(debug) {

@@ -1,5 +1,3 @@
-//Author: root4root@gmail.com
-
 #include <fcntl.h>
 #include <pthread.h>
 #include <pcap.h>
@@ -15,15 +13,15 @@
 
 #define BUFSIZE 2000
 
-int debug = 0;
-int status = 0;
-long ts = 0;
-long curts = 0;
+short int debug = 0;
+short int status = 0;
+unsigned long ts = 0;
+unsigned long curts = 0;
 
 char progname[] = "tuninetd";
 
 struct globcfg_t {
-    int isdaemon;
+    short int isdaemon;
     pid_t pid;
     char *cmd_path;
     char *cmd_path_start;
@@ -158,5 +156,9 @@ int main(int argc, char *argv[])
            pthread_create(&tun_x_thread, &attr, tun_x, &y);
         }
     }
+    
+    free(globcfg.cmd_path_start);
+    free(globcfg.cmd_path_stop);
+    
     return 0;
 }

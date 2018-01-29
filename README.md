@@ -53,7 +53,7 @@ To create and up tun device, could be used next commands:
 
 For more information about routing and configuring net devices, please check official documentation.
 
-*! Notice, that the modern Linux distributions periodically send 'icmpv6 router solicitation' packets, which, probably, doesn't make sense on tun interfaces, but cause tuninetd state changing (call of 'start' script).*
+*! Notice, that the modern Linux distributions periodically send 'icmpv6 router solicitation' packets, which, probably, doesn't make sense in your case, but cause tuninetd state changing (call of 'start' script).*
 
 ### License:
 MIT

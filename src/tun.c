@@ -1,4 +1,4 @@
-int tun_alloc(char *dev, int flags) 
+static int tun_alloc(char *dev, int flags) 
 {
     struct ifreq ifr;
     int fd, err;
@@ -25,7 +25,7 @@ int tun_alloc(char *dev, int flags)
     return fd;
 }
 
-int cread(int fd, char *buf, int n)
+static int cread(int fd, char *buf, int n)
 {
     int nread;
 
@@ -69,7 +69,7 @@ void *tun_x(void *x_void_ptr)
     
     close(tap_fd);
   
-    my_info("Executing START command...");
+    my_info("TUN/TAP module: executing START command...");
     
     if (system(globcfg.cmd_path_start) != 0) {
         my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_start);

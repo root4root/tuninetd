@@ -44,11 +44,12 @@ void my_info(char *msg, ...)
 
 void usage(void) {
     fprintf(stderr, "\nUsage:\n\n");
-    fprintf(stderr, "%s -i <ifname> -c <path> [-m <iftype>] [-f <filter>] [-t <ttl>] [-d]\n", progname);
+    fprintf(stderr, "%s {-i <ifname> | -n <nflog-group>} -c <path> [-m <iftype>] [-f <filter>] [-t <ttl>] [-d]\n", progname);
     fprintf(stderr, "\n\n");
     fprintf(stderr, "-i <ifname>: interface to use (tun or tap). Must be up and configured.\n");
     fprintf(stderr, "-c <path>: will be executed with 'start' and 'stop' parameter.\n");
     fprintf(stderr, "-m <iftype>: 'tun' or 'tap' mode. By default 'tun', should be set properly. \n");
+    fprintf(stderr, "-n <nflog-group>: NFLOG group number. If it sets, '-i', '-m' and '-f' flags will be ignored. \n");
     fprintf(stderr, "-f <filter>: specify pcap filter, similar to tcpdump\n");
     fprintf(stderr, "-t <ttl>: seconds of interface idle, before 'stop' command (default is 600).\n");
     fprintf(stderr, "-d: demonize process\n");

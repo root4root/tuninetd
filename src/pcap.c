@@ -1,10 +1,9 @@
-void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
+static void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
     ts = header->ts.tv_sec;
 }
 
-
-void *inc_x(void *x_void_ptr)
+void *pcap_x(void *x_void_ptr)
 {
     struct bpf_program filter;
 

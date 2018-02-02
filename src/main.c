@@ -11,6 +11,10 @@
 #include <syslog.h>
 #include <unistd.h>
 
+//#include <sys/types.h>
+#include <libnetfilter_log/libnetfilter_log.h>
+//#include <sys/socket.h>
+
 #define BUFSIZE 2000
 
 short int debug = 0;
@@ -28,6 +32,7 @@ struct globcfg_t {
     char *cmd_path_stop;
     char *pcap_filter;
     char *dev_name;
+    long nf_group;
     int dev_mode;
     int ttl;
 } globcfg;
@@ -35,12 +40,13 @@ struct globcfg_t {
 #include "utils.c"
 #include "tun.c"
 #include "pcap.c"
+#include "nflog.c"
 
 int main(int argc, char *argv[])
 {
     int x, y, opt=0;
    
-    static const char *optString = "i:t:c:f:m:dh";
+    static const char *optString = "i:t:c:f:m:n:dh";
   
     curts = time(NULL);
     
@@ -49,6 +55,7 @@ int main(int argc, char *argv[])
     globcfg.cmd_path = NULL;
     globcfg.ttl = 600;
     globcfg.dev_mode = IFF_TUN;
+    globcfg.nf_group = -1;
     
     opt = getopt( argc, argv, optString);
     
@@ -80,6 +87,9 @@ int main(int argc, char *argv[])
                     globcfg.dev_mode = IFF_TAP;
                 }
                 break;
+            case 'n':
+                globcfg.nf_group = atoi(optarg);
+                break;
             case 'd':
                 globcfg.isdaemon = 1;
                 break;
@@ -95,8 +105,8 @@ int main(int argc, char *argv[])
         opt = getopt( argc, argv, optString );
     }
     
-    if (globcfg.dev_name == NULL) {
-        my_err("tun/tap device must be specified with proper type (-m by default tun).");
+    if (globcfg.dev_name == NULL && globcfg.nf_group < 0) {
+        my_err("tun/tap device OR nfgroup must be specified.");
         usage();
         exit(1);
     }
@@ -130,30 +140,40 @@ int main(int argc, char *argv[])
         close(STDERR_FILENO);
     }
     
-    pthread_t inc_x_thread;
+    pthread_t pcap_x_thread;
     pthread_t tun_x_thread;
+    pthread_t nflog_x_thread;
     
     pthread_attr_t attr;
 
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     
-    pthread_create(&inc_x_thread, &attr, inc_x, &x);
-    pthread_create(&tun_x_thread, &attr, tun_x, &y);
-   
+    if (globcfg.nf_group < 0) {
+        my_info("Binding to interface %s", globcfg.dev_name);
+        pthread_create(&pcap_x_thread, &attr, pcap_x, &x);
+        pthread_create(&tun_x_thread, &attr, tun_x, &y);
+    } else {
+        my_info("Start listening nflog-group %i", globcfg.nf_group);
+        pthread_create(&nflog_x_thread, &attr, nflog_x, &y);
+    }
+    
     while (1) {
         usleep(1000000);
         curts = time(NULL);
        
         if (ts != 0 && status == 1 && ((curts - ts) >= globcfg.ttl) ) {
-           status = 0;
-           my_info("Executing STOP command... Binding again to interface %s", globcfg.dev_name);
+            my_info("CORE: executing STOP command...");
            
             if (system(globcfg.cmd_path_stop) != 0) {
                 my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_stop);
             }
            
-           pthread_create(&tun_x_thread, &attr, tun_x, &y);
+            status = 0;
+            
+            if (globcfg.nf_group < 0) {
+                pthread_create(&tun_x_thread, &attr, tun_x, &y);
+            }
         }
     }
     

@@ -1,50 +1,13 @@
-#include <fcntl.h>
-#include <pthread.h>
-#include <pcap.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <net/if.h>
-#include <linux/if_tun.h>
-#include <sys/ioctl.h>
-#include <stdarg.h>
-#include <syslog.h>
-#include <unistd.h>
-
-//#include <sys/types.h>
-#include <libnetfilter_log/libnetfilter_log.h>
-//#include <sys/socket.h>
-
-#define BUFSIZE 2000
-
-short int debug = 0;
-short int status = 0;
-unsigned long ts = 0;
-unsigned long curts = 0;
-
-char progname[] = "tuninetd";
-
-struct globcfg_t {
-    short int isdaemon;
-    pid_t pid;
-    char *cmd_path;
-    char *cmd_path_start;
-    char *cmd_path_stop;
-    char *pcap_filter;
-    char *dev_name;
-    long nf_group;
-    int dev_mode;
-    int ttl;
-} globcfg;
-
-#include "utils.c"
-#include "tun.c"
-#include "pcap.c"
-#include "nflog.c"
+#include "main.h"
 
 int main(int argc, char *argv[])
 {
-    int x, y, opt=0;
+    int opt = 0;
+    
+    struct timespec tim;
+
+    tim.tv_sec = 1;
+    tim.tv_nsec = 0;
    
     static const char *optString = "i:t:c:f:m:n:dh";
   
@@ -117,6 +80,12 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
+    if (pthread_mutex_init(&lock, NULL) != 0)
+    {
+        my_err("Mutex init failed. Abort.");
+        exit(1);
+    }
+    
     if (globcfg.isdaemon == 1) {
         globcfg.pid = fork();
         
@@ -138,14 +107,10 @@ int main(int argc, char *argv[])
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
-    }
+    } else 
+        my_info("Started with pid %d", getpid());    
     
-    pthread_t pcap_x_thread;
-    pthread_t tun_x_thread;
-    pthread_t nflog_x_thread;
     
-    pthread_attr_t attr;
-
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     
@@ -158,22 +123,19 @@ int main(int argc, char *argv[])
         pthread_create(&nflog_x_thread, &attr, nflog_x, &y);
     }
     
+    if (signal(SIGHUP, sig_handler) == SIG_ERR)
+         my_info("Can't catch SIGHUP\n");
+    
+    
     while (1) {
-        usleep(1000000);
+    
+        nanosleep(&tim, NULL);
+        
         curts = time(NULL);
        
         if (ts != 0 && status == 1 && ((curts - ts) >= globcfg.ttl) ) {
             my_info("CORE: executing STOP command...");
-           
-            if (system(globcfg.cmd_path_stop) != 0) {
-                my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_stop);
-            }
-           
-            status = 0;
-            
-            if (globcfg.nf_group < 0) {
-                pthread_create(&tun_x_thread, &attr, tun_x, &y);
-            }
+            switch_guard(OFF);
         }
     }
     

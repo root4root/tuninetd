@@ -1,18 +1,11 @@
 static int callback(struct nflog_g_handle *gh, struct nfgenmsg *nfmsg, struct nflog_data *ldata, void *data)
 {
-    if (status == 0) {
-        
+    if (status == OFF) {
         my_info("NFLOG module: executing START command...");
-        
-        if (system(globcfg.cmd_path_start) != 0) {
-            my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_start);
-        }
-        
-        status = 1;
+        switch_guard(ON);
     }
     
     ts = curts;
-    
 }
 
 void *nflog_x(void *x_void_ptr)
@@ -41,7 +34,7 @@ void *nflog_x(void *x_void_ptr)
     }
     qh = nflog_bind_group(h, globcfg.nf_group);
     if (!qh) {
-        my_err("no handle for group 0");
+        my_err("no handle for group %i", globcfg.nf_group);
         exit(1);
     }
 

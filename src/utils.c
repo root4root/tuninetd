@@ -58,3 +58,49 @@ void usage(void) {
     fprintf(stderr, "tuninetd -i tun0 -c /test/runtunnel.sh -f \"! host 1.2.3.4\" -t 3600 -d\n\n"); 
     exit(1);
 }
+
+void switch_state(short action)
+{
+    if (status == action) {
+        return;
+    }
+    
+    ts = time(NULL);
+    
+    if (action == ON) {
+        if (system(globcfg.cmd_path_start) != 0) 
+            my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_start);
+        
+        status = ON;
+        
+    } else {
+        if (system(globcfg.cmd_path_stop) != 0)
+            my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_stop);
+        
+        status = OFF;
+        
+        if (globcfg.nf_group < 0) 
+            pthread_create(&tun_x_thread, &attr, tun_x, &y);
+        
+    }
+    
+}
+
+void switch_guard(short action)
+{
+    pthread_mutex_lock(&lock);
+    switch_state(action);
+    pthread_mutex_unlock(&lock);
+}
+
+void sig_handler(int signo)
+{
+    if (status == OFF) {
+       my_err("Warning! Tuninetd is already in standby mode.");
+       return;
+    }
+    
+    my_info("SIGHUP caught. Going to standby mode.");
+    
+    switch_guard(OFF);
+}

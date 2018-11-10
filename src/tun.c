@@ -43,6 +43,11 @@ void *tun_x(void *x_void_ptr)
     int nread;
     char buffer[BUFSIZE];
     
+    struct timespec tim;
+
+    tim.tv_sec = 0;
+    tim.tv_nsec = 15000000;
+    
  
     if ( (tap_fd = tun_alloc(globcfg.dev_name, globcfg.dev_mode | IFF_NO_PI)) < 0 ) {
         my_err("Fatal error. Connecting to tun/tap interface %s failed.", globcfg.dev_name);
@@ -53,27 +58,21 @@ void *tun_x(void *x_void_ptr)
         nread = cread(tap_fd, buffer, BUFSIZE);
         
         if (globcfg.pcap_filter != NULL) {
-            usleep(15000); //Wait for libpcap timeout.
+            nanosleep(&tim, NULL);
             if ( (curts - ts) < 2 ) {
                 do_debug("Read %d bytes from the tap interface\n", nread);
                 break;
             } 
         } else {
-             break;   
+             break;
         }
     }
   
-    ts = time(NULL);
-    
-    status = 1;
-    
     close(tap_fd);
   
     my_info("TUN/TAP module: executing START command...");
     
-    if (system(globcfg.cmd_path_start) != 0) {
-        my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_start);
-    }
-  
+    switch_guard(ON);
+     
     return 0;
 }

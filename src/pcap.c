@@ -1,6 +1,10 @@
+#include "main.h"
+#include <pcap.h>
+
 static void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
 {
     ts = header->ts.tv_sec;
+    //do_debug("Packet timestamp %lu ...\n", ts);
 }
 
 void *pcap_x(void *x_void_ptr)

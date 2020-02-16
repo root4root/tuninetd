@@ -1,3 +1,9 @@
+#include "main.h"
+#include <syslog.h>
+#include <stdarg.h>
+
+static char progname[] = "tuninetd";
+
 void do_debug(char *msg, ...)
 {
     if(debug) {
@@ -43,55 +49,29 @@ void my_info(char *msg, ...)
 }
 
 void usage(void) {
+    fprintf(stderr, VERSION);
     fprintf(stderr, "\nUsage:\n\n");
     fprintf(stderr, "%s {-i <ifname> | -n <nflog-group>} -c <path> [-m <iftype>] [-f <filter>] [-t <ttl>] [-d]\n", progname);
     fprintf(stderr, "\n\n");
     fprintf(stderr, "-i <ifname>: interface to use (tun or tap). Must be up and configured.\n");
-    fprintf(stderr, "-c <path>: will be executed with 'start' and 'stop' parameter.\n");
-    fprintf(stderr, "-m <iftype>: 'tun' or 'tap' mode. By default 'tun', should be set properly. \n");
-    fprintf(stderr, "-n <nflog-group>: NFLOG group number. If it sets, '-i', '-m' and '-f' flags will be ignored. \n");
-    fprintf(stderr, "-f <filter>: specify pcap filter, similar to tcpdump\n");
-    fprintf(stderr, "-t <ttl>: seconds of interface idle, before 'stop' command (default is 600).\n");
-    fprintf(stderr, "-d: demonize process\n");
-    fprintf(stderr, "-h: prints this help text\n\n");
-    fprintf(stderr, "\nExample:\n\n");
-    fprintf(stderr, "tuninetd -i tun0 -c /test/runtunnel.sh -f \"! host 1.2.3.4\" -t 3600 -d\n\n"); 
+    fprintf(stderr, "-c <path>: will be executed with 'start' and 'stop' parameter accordingly.\n");
+    fprintf(stderr, "-m <iftype>: 'tun' or 'tap' mode. By default 'tun'. \n");
+    fprintf(stderr, "-n <nflog-group>: NFLOG group number ('-i', '-m' and '-f' will be ignored in this case.) \n");
+    fprintf(stderr, "-f <filter>: specify pcap filter, similar to tcpdump.\n");
+    fprintf(stderr, "-t <ttl>: interface idling in seconds, before 'stop' command will be launched. 600 by default.\n");
+    fprintf(stderr, "-d: demonize process. Check for errors before use.\n\n");
+    fprintf(stderr, "-h: print this help\n\n");
+    fprintf(stderr, "-v: print version\n\n");
+    fprintf(stderr, "\nExamples:\n\n");
+    fprintf(stderr, "# tuninetd -i tun0 -c /test/runtunnel.sh -f \"! host 1.2.3.4\" -t 3600 -d\n");
+    fprintf(stderr, "# tuninetd -n 1 -c /etc/tuninetd/toggletunnel.sh -d\n\n");
     exit(1);
 }
 
-void switch_state(short action)
-{
-    if (status == action) {
-        return;
-    }
-    
-    ts = time(NULL);
-    
-    if (action == ON) {
-        if (system(globcfg.cmd_path_start) != 0) 
-            my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_start);
-        
-        status = ON;
-        
-    } else {
-        if (system(globcfg.cmd_path_stop) != 0)
-            my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_stop);
-        
-        status = OFF;
-        
-        if (globcfg.nf_group < 0) 
-            pthread_create(&tun_x_thread, &attr, tun_x, &y);
-        
-    }
-    
+void version() {
+    fprintf(stderr, VERSION);
 }
 
-void switch_guard(short action)
-{
-    pthread_mutex_lock(&lock);
-    switch_state(action);
-    pthread_mutex_unlock(&lock);
-}
 
 void sig_handler(int signo)
 {

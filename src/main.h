@@ -1,33 +1,27 @@
+#ifndef H_TUNINETD_MAIN
+#define H_TUNINETD_MAIN
+
 #include <fcntl.h>
-#include <pthread.h>
-#include <pcap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <net/if.h>
 #include <linux/if_tun.h>
-#include <sys/ioctl.h>
-#include <stdarg.h>
-#include <syslog.h>
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
 
-#include <libnetfilter_log/libnetfilter_log.h>
-
-
 #define BUFSIZE 2000
 #define ON 1
 #define OFF 0
+#define VERSION "\ntuninetd 1.2.1\n"
 
-int x, y;
-
-short int debug = 0;
-short int status = 0;
-unsigned long ts = 0;
-unsigned long curts = 0;
-
-char progname[] = "tuninetd";
+//global vars.
+short int debug;
+short int status;
+unsigned long ts;
+unsigned long curts;
 
 struct globcfg_t {
     short int isdaemon;
@@ -42,24 +36,21 @@ struct globcfg_t {
     int ttl;
 } globcfg;
 
-pthread_t pcap_x_thread;
-pthread_t tun_x_thread;
-pthread_t nflog_x_thread;
     
-pthread_attr_t attr;
-pthread_mutex_t lock;
-
+//from utils.c
 void do_debug(char *msg, ...);
 void my_err(char *msg, ...);
 void my_info(char *msg, ...);
-void switch_state(short action);
+void sig_handler(int signo);
+void usage();
+void version();
+
+//from thread.c
 void switch_guard(short action);
+void thread_init();
 
 void *tun_x(void *x_void_ptr);
 void *nflog_x(void *x_void_ptr);
 void *pcap_x(void *x_void_ptr);
 
-#include "utils.c"
-#include "tun.c"
-#include "pcap.c"
-#include "nflog.c"
+#endif

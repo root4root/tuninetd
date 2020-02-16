@@ -1,3 +1,6 @@
+#include "main.h"
+#include <libnetfilter_log/libnetfilter_log.h>
+
 static int callback(struct nflog_g_handle *gh, struct nfgenmsg *nfmsg, struct nflog_data *ldata, void *data)
 {
     if (status == OFF) {

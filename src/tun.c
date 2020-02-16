@@ -1,3 +1,5 @@
+#include "main.h"
+
 static int tun_alloc(char *dev, int flags) 
 {
     struct ifreq ifr;
@@ -46,7 +48,7 @@ void *tun_x(void *x_void_ptr)
     struct timespec tim;
 
     tim.tv_sec = 0;
-    tim.tv_nsec = 15000000;
+    tim.tv_nsec = 20000000;
     
  
     if ( (tap_fd = tun_alloc(globcfg.dev_name, globcfg.dev_mode | IFF_NO_PI)) < 0 ) {
@@ -59,9 +61,11 @@ void *tun_x(void *x_void_ptr)
         
         if (globcfg.pcap_filter != NULL) {
             nanosleep(&tim, NULL);
-            if ( (curts - ts) < 2 ) {
-                do_debug("Read %d bytes from the tap interface\n", nread);
+            if ( (long)(curts - ts) < 2 ) {
+                //do_debug("Read %d bytes from the tap interface\n", nread);
                 break;
+            } else {
+                //do_debug("Delta is not small enough...\n");
             } 
         } else {
              break;

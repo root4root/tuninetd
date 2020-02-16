@@ -6,10 +6,12 @@ int main(int argc, char *argv[])
     
     struct timespec tim;
 
+    //debug = 1;
+
     tim.tv_sec = 1;
     tim.tv_nsec = 0;
    
-    static const char *optString = "i:t:c:f:m:n:dh";
+    static const char *optString = "i:t:c:f:m:n:dhv";
   
     curts = time(NULL);
     
@@ -24,6 +26,9 @@ int main(int argc, char *argv[])
     
     while( opt != -1 ) {
         switch( opt ) {
+            case 'v':
+                version();
+                exit(0);
             case 'i':
                 globcfg.dev_name = optarg;
                 break;
@@ -56,7 +61,7 @@ int main(int argc, char *argv[])
             case 'd':
                 globcfg.isdaemon = 1;
                 break;
-            case 'h':   /* намеренный проход в следующий case-блок */
+            case 'h':   //go to the next case, same behaviour.
             case '?':
                 usage();
                 break;
@@ -80,11 +85,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
-    if (pthread_mutex_init(&lock, NULL) != 0)
-    {
-        my_err("Mutex init failed. Abort.");
-        exit(1);
-    }
     
     if (globcfg.isdaemon == 1) {
         globcfg.pid = fork();
@@ -110,18 +110,7 @@ int main(int argc, char *argv[])
     } else 
         my_info("Started with pid %d", getpid());    
     
-    
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    
-    if (globcfg.nf_group < 0) {
-        my_info("Binding to interface %s", globcfg.dev_name);
-        pthread_create(&pcap_x_thread, &attr, pcap_x, &x);
-        pthread_create(&tun_x_thread, &attr, tun_x, &y);
-    } else {
-        my_info("Start listening nflog-group %i", globcfg.nf_group);
-        pthread_create(&nflog_x_thread, &attr, nflog_x, &y);
-    }
+    thread_init(); //Initialization our workers (thread.c)
     
     if (signal(SIGHUP, sig_handler) == SIG_ERR)
          my_info("Can't catch SIGHUP\n");
@@ -129,9 +118,10 @@ int main(int argc, char *argv[])
     
     while (1) {
     
-        nanosleep(&tim, NULL);
+        nanosleep(&tim, NULL); //Tick
         
         curts = time(NULL);
+        //do_debug("Tick %lu ...\n", curts);//
        
         if (ts != 0 && status == 1 && ((curts - ts) >= globcfg.ttl) ) {
             my_info("CORE: executing STOP command...");

@@ -1,6 +1,6 @@
 # tuninetd
 
-Simple yet powerful event emitter by **tun/tap** (with/without **pcap** filter) or **nflog** source. 
+Simple yet powerful event emitter by **tun/tap** (with/without **pcap** filter) or **nflog** source.
 
 Could be used as: VPN dispatcher, simplified detection system, by demand service handler, tricky lock etc...
 

@@ -1,9 +1,11 @@
 # tuninetd
 
-Simple yet powerful event emitter by **tun/tap** (with/without **pcap** filter) or **nflog** source. Could be used as: VPN dispatcher, simplified detection system, by demand services handler, etc...
+Simple yet powerful event emitter by **tun/tap** (with/without **pcap** filter) or **nflog** source. 
 
-### 1. How it works.
-#### tun/tap device: ####
+Could be used as: VPN dispatcher, simplified detection system, by demand service handler, tricky lock etc...
+
+### 1. How it works:
+#### 1.1. tun/tap + pcap mode:
 You should create and configure tun/tap device first, then run **tuninetd**. It starts listening on this interface, until network traffic will be detected. After that, interface immediately releasing and specified command (with -c) will execute. From now on, daemon in monitoring state.
 
 ---
@@ -24,7 +26,7 @@ Since **tuninetd** based on **libpcap**, you can specify capture filter. To test
 
 >**! Notice !** *Modern Linux distributions periodically send 'icmpv6 router solicitation' packets, which cause tuninetd keep or change state. This situation appears in tun/tap mode without pcap filter applied.*
 
-#### NFLOG: ####
+#### 1.2. nflog mode:
 
 In general, behavior the same as tun/tap in part of start/stop. You could simply use netfilter nfgroup (*iptables **NFLOG** target*) to reading packets from. No binding to tun/tap device nor libpcap sensor. This is more lightweight mode and, because of that, - more reliable.
 
@@ -43,19 +45,28 @@ To install from sources download src folder. In case Debian/Ubuntu, you should a
 Congrats! Tuninend ready to use. Check ./bin folder.
 
 ### 3. Usage:
+#### 3.1. Launch:
 
-tuninetd {-i \<ifname> | -n \<nflog-group>} -c \<path> [-m \<iftype>] [-f \<filter>] [-t \<ttl>] [-d]
+```sh
+# tuninetd {-i <ifname> | -n <nflog-group>} -c <path> [-m <iftype>] [-f <filter>] [-t <ttl>] [-d]
+```
 
 **-i \<ifname>**: interface to use (tun or tap). Must be up and configured.<br/>
-**-n \<nflog-group>**: iptables NFLOG group number ('-i', '-m' and '-f' will be ignored).<br/>
-**-c \<path>**: will be executed with 'start' and 'stop' parameter.<br/>
+**-n \<nflog-group>**: iptables NFLOG group ('-i', '-m' and '-f' will be ignored).<br/>
+**-c \<path>**: will execute with 'start' and 'stop' parameter.<br/>
 **-m \<iftype>**: 'tun' or 'tap' mode. By default 'tun', should be set properly.<br/>
 **-f \<filter>**: specify pcap filter, similar to tcpdump<br/>
-**-t \<ttl>**: seconds of interface (traffic) idle, before 'stop' command (default is 600).<br/>
-**-d**: demonize process<br/>
+**-t \<ttl>**: seconds since last packet before 'stop' command (default is 600).<br/>
+**-d**: daemonize process<br/>
 **-h**: print this help
 
-`--- If tuninetd stuck in start condition for any reason, you can reset to "standby" (i.e. stop state) with SIGHUP. ---`
+---
+
+#### 3.2. Signals:
+SIGHUP  (-1): switch tuninetd to standby mode (deadlock resolving)<br/>
+SIGUSR1 (-10): write to syslog current state (debug information)
+
+
 
 ### 4. Examples:
 Before launching as a daemon make sure there is no errors. In daemon mode tuninetd write status messages and errors to syslog.
@@ -67,13 +78,29 @@ Before launching as a daemon make sure there is no errors. In daemon mode tunine
 
 Check ```example``` folder to find some shell scripts.
 
-To create and bring up ```tun``` device, could be used following commands:
+To create and bring up ```tun``` device could be used following commands:
 ```sh
 # ip tuntap add dev tun0 mode tun
 # ip link set tun0 up
 ```
 
-For more information about routing and configuring network devices, I strongly suggest LARCT how-to.
+For more information about routing and configuring network devices, I strongly suggest LARTC how-to.
+
+<br/>
+
+---
+```sh
+# killall -10 tuninetd 
+```
+syslog:<br/>
+
+>Oct 20 18:42:20 router1 tuninetd: SIGUSR1 caught:<br/>
+>Oct 20 18:42:20 router1 tuninetd: - Capture engine: nflog group 1<br/>
+>Oct 20 18:42:20 router1 tuninetd: - cmd_path = /etc/tuninetd/toggletunnel.sh<br/>
+>Oct 20 18:42:20 router1 tuninetd: - TTL = 600 sec.<br/>
+>Oct 20 18:42:20 router1 tuninetd: - Current status: up (ON), time since last captured packet: 2 sec.
+---
+
 
 ### License:
 MIT

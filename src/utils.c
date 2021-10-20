@@ -1,10 +1,10 @@
-#include "main.h"
+#include "common.h"
 #include <syslog.h>
 #include <stdarg.h>
 
 static char progname[] = "tuninetd";
 
-void do_debug(char *msg, ...)
+void do_debug(const char *msg, ...)
 {
     if(debug) {
         va_list argp;
@@ -14,37 +14,30 @@ void do_debug(char *msg, ...)
     }
 }
 
-void my_err(char *msg, ...) 
+void message(int mylogpriority, const char *msg, ...)
 {
-    va_list argp;
-    va_start(argp, msg);
-    
-    if (globcfg.isdaemon == 0) {
-        vfprintf(stderr, msg, argp);
-        vfprintf(stderr, "\n", NULL);
-    } else {
-        openlog("tuninetd", 0, LOG_USER);
-        vsyslog(LOG_ERR, msg, argp);
-        closelog();
-    }
-    
-    va_end(argp);
-}
+    int syslogpriority;
 
-void my_info(char *msg, ...) 
-{
+    if (mylogpriority == ERROR) {
+        syslogpriority = LOG_ERR;
+    } else if (mylogpriority == WARNING) {
+       syslogpriority = LOG_WARNING;
+    } else {
+       syslogpriority = LOG_INFO;
+    }
+
     va_list argp;
     va_start(argp, msg);
-    
+
     if (globcfg.isdaemon == 0) {
         vfprintf(stderr, msg, argp);
         vfprintf(stderr, "\n", NULL);
     } else {
         openlog("tuninetd", 0, LOG_USER);
-        vsyslog(LOG_INFO, msg, argp);
+        vsyslog(syslogpriority, msg, argp);
         closelog();
     }
-    
+
     va_end(argp);
 }
 
@@ -59,7 +52,7 @@ void usage(void) {
     fprintf(stderr, "-n <nflog-group>: NFLOG group number ('-i', '-m' and '-f' will be ignored in this case.) \n");
     fprintf(stderr, "-f <filter>: specify pcap filter, similar to tcpdump.\n");
     fprintf(stderr, "-t <ttl>: interface idling in seconds, before 'stop' command will be launched. 600 by default.\n");
-    fprintf(stderr, "-d: demonize process. Check for errors before use.\n\n");
+    fprintf(stderr, "-d: daemonize process. Check for errors before use.\n\n");
     fprintf(stderr, "-h: print this help\n\n");
     fprintf(stderr, "-v: print version\n\n");
     fprintf(stderr, "\nExamples:\n\n");
@@ -73,14 +66,38 @@ void version() {
 }
 
 
-void sig_handler(int signo)
+void sighup_handler(int signo)
 {
     if (status == OFF) {
-       my_err("Warning! Tuninetd is already in standby mode.");
+       message(WARNING, "Warning! Tuninetd is already in standby mode.");
        return;
     }
-    
-    my_info("SIGHUP caught. Going to standby mode.");
-    
+
+    message(INFO, "SIGHUP caught, switch to standby mode.");
+
     switch_guard(OFF);
+}
+
+void sigusr_handler(int signo)
+{
+    long delta = 0;
+
+    message(INFO, "SIGUSR1 caught:");
+    if (globcfg.nf_group < 0) {
+        message(INFO, "- Capture engine: pcap + tun/tap");
+        if (globcfg.pcap_filter != NULL) {
+            message(INFO, "-- Pcap filter: \"%s\"", globcfg.pcap_filter);
+        }
+    } else {
+        message(INFO, "- Capture engine: nflog group %ld", globcfg.nf_group);
+    }
+    message(INFO, "- cmd_path = %s", globcfg.cmd_path);
+    message(INFO, "- TTL = %ld sec.", globcfg.ttl);
+
+    if (status == OFF) {
+        message(INFO, "- Current status: standby (OFF)");
+    } else {
+        delta = curts - ts;
+        message(INFO, "- Current status: up (ON), time since last captured packet: %ld sec.", delta < 0 ? 0 : delta);
+    }
 }

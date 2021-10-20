@@ -1,4 +1,4 @@
-#include "main.h"
+#include "common.h"
 #include <pthread.h>
 
 static pthread_t pcap_x_thread;
@@ -13,7 +13,7 @@ static int x, y;
 void thread_init()
 {
     if (pthread_mutex_init(&lock, NULL) != 0) {
-        my_err("Mutex init failed. Abort.");
+        message(ERROR, "Mutex init failed. Abort.");
         exit(1);
     }
 
@@ -21,11 +21,11 @@ void thread_init()
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
     if (globcfg.nf_group < 0) {
-        my_info("Binding to interface %s", globcfg.dev_name);
+        message(INFO, "Binding to interface %s", globcfg.dev_name);
         pthread_create(&pcap_x_thread, &attr, pcap_x, &x);
         pthread_create(&tun_x_thread, &attr, tun_x, &y);
     } else {
-        my_info("Start listening nflog-group %i", globcfg.nf_group);
+        message(INFO, "Start listening nflog-group %i", globcfg.nf_group);
         pthread_create(&nflog_x_thread, &attr, nflog_x, &y);
     }
 }
@@ -39,20 +39,22 @@ void switch_state(short action)
     ts = time(NULL);
 
     if (action == ON) {
-        if (system(globcfg.cmd_path_start) != 0)
-            my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_start);
+        if (system(globcfg.cmd_path_start) != 0) {
+            message(WARNING, "Warning! Executable command doesn't return 0 code (%s)", globcfg.cmd_path_start);
+        }
 
         status = ON;
 
-    } else {
-        if (system(globcfg.cmd_path_stop) != 0)
-            my_err("Warning! Executable command doesn't return 0 (%s)", globcfg.cmd_path_stop);
+    } else { //action == OFF
+        if (system(globcfg.cmd_path_stop) != 0) {
+            message(WARNING, "Warning! Executable command doesn't return 0 code (%s)", globcfg.cmd_path_stop);
+        }
 
         status = OFF;
 
-        if (globcfg.nf_group < 0)
+        if (globcfg.nf_group < 0) {
             pthread_create(&tun_x_thread, &attr, tun_x, &y);
-
+        }
     }
 }
 

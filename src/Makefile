@@ -4,7 +4,7 @@ all: tuninetd
 
 tuninetd: main.o xnflog.o xpcap.o thread.o xtun.o utils.o
 	[ -d ./bin ] || mkdir -p ./bin
-	gcc main.o xnflog.o xpcap.o thread.o xtun.o utils.o -o ./bin/tuninetd -lpthread -lpcap -lnetfilter_log
+	gcc main.o xnflog.o xpcap.o thread.o xtun.o utils.o -o ./bin/tuninetd -lpthread -lpcap -lnetfilter_log -lnfnetlink
 	
 main.o: main.c main.h common.h
 	gcc $(CFLAGS) -c main.c

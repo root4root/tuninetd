@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include <time.h>
 
-#define BUFSIZE 2000
 #define ON 1
 #define OFF 0
 
@@ -19,7 +18,7 @@
 #define WARNING 1
 #define INFO 2
 
-#define VERSION "\ntuninetd 1.3.0\n"
+#define VERSION "\ntuninetd 1.3.1\n"
 
 //global vars.
 short int debug;
@@ -45,8 +44,9 @@ struct globcfg_t {
 void do_debug(const char *msg, ...);
 void message(int, const char *msg, ...);
 
-void sighup_handler(int signo);
-void sigusr_handler(int signo);
+void sighup_handler(int);
+void sigusr_handler(int);
+void sigterm_handler(int);
 void usage();
 void version();
 
@@ -57,5 +57,7 @@ void thread_init();
 void *tun_x(void *x_void_ptr);
 void *nflog_x(void *x_void_ptr);
 void *pcap_x(void *x_void_ptr);
+
+void xnflog_stop();
 
 #endif

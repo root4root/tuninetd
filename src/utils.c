@@ -101,3 +101,13 @@ void sigusr_handler(int signo)
         message(INFO, "- Current status: up (ON), time since last captured packet: %ld sec.", delta < 0 ? 0 : delta);
     }
 }
+
+void sigterm_handler(int signo)
+{
+    if (globcfg.nf_group >= 0) {
+        xnflog_stop();
+    }
+
+    exit(0);
+
+}

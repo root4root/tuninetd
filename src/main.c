@@ -14,14 +14,11 @@ int main(int argc, char *argv[])
     tim.tv_nsec = 0;
 
     //debug = 1;
-
-    if (signal(SIGHUP, sighup_handler) == SIG_ERR) {
-         message(WARNING, "Warning! Can't catch SIGHUP");
-    }
-
-    if (signal(SIGUSR1, sigusr_handler) == SIG_ERR) {
-         message(WARNING, "Warning! Can't catch SIGUSR1");
-    }
+    
+    signal(SIGTERM, sigterm_handler);
+    signal(SIGHUP, sighup_handler);
+    signal(SIGUSR1, sigusr_handler);
+    signal(SIGINT, sigterm_handler);
 
     while (1) {
 

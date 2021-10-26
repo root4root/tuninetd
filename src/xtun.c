@@ -1,5 +1,7 @@
 #include "common.h"
 
+#define BUFSIZE 2000
+
 static int tun_alloc(char *dev, int flags) 
 {
     struct ifreq ifr;

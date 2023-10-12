@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -21,12 +22,12 @@
 #define VERSION "\ntuninetd 1.3.1\n"
 
 //global vars.
-short int debug;
-short int status;
-unsigned long ts;
-unsigned long curts;
+extern short int debug;
+extern short int status;
+extern unsigned long ts;
+extern unsigned long curts;
 
-struct globcfg_t {
+extern struct globcfg_t {
     short int isdaemon;
     pid_t pid;
     char *cmd_path;

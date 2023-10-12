@@ -1,5 +1,14 @@
 #include "main.h"
 
+//Global vars --
+short int debug;
+short int status;
+unsigned long ts;
+unsigned long curts;
+
+struct globcfg_t globcfg;
+// -- Global vars
+
 int main(int argc, char *argv[])
 {
     curts = time(NULL);

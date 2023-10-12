@@ -20,12 +20,33 @@ static void setnlbufsiz(unsigned int size, struct nflog_handle *h)
 
 static int callback(struct nflog_g_handle *gh, struct nfgenmsg *nfmsg, struct nflog_data *ldata, void *data)
 {
-    if (status == OFF) {
-        message(INFO, "NFLOG: executing START command...");
-        switch_guard(ON);
+    ts = curts;
+
+    if (status == ON) {
+        return 0;
     }
 
-    ts = curts;
+    uint8_t *payload;
+
+    int payload_fetch_result = nflog_get_payload(ldata, &payload);
+
+    if (payload_fetch_result < 0) {
+        return 0;
+    }
+
+    message(INFO, "NFLOG: executing START command...");
+
+    if (payload[0] >> 4 == 4) { //4 bit MSB IP version. IPv4 in this case. TODO: implement for IPv6
+        message(INFO, "|- IPv4 SRC: %i.%i.%i.%i DST: %i.%i.%i.%i", payload[12], payload[13], payload[14], payload[15], payload[16], payload[17], payload[18], payload[19]);
+
+        struct nfulnl_msg_packet_hw *hw = nflog_get_packet_hw(ldata);
+
+        if (hw) { //Hardware information only available on inbound or transit packets
+            message(INFO, "|- HWaddr: %02x:%02x:%02x:%02x:%02x:%02x, DevIndex: %u", hw->hw_addr[0], hw->hw_addr[1], hw->hw_addr[2], hw->hw_addr[3], hw->hw_addr[4], hw->hw_addr[5], nflog_get_indev(ldata));
+        }
+    }
+
+    switch_guard(ON);
 
     return 0;
 }

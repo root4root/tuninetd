@@ -1,109 +1,132 @@
 # tuninetd
 
-Simple yet powerful event emitter by **tun/tap** (with/without **pcap** filter) or **nflog** source.
+Network event emitter with **pcap** and **nflog** sensors.
 
-Could be used as: VPN dispatcher, simplified detection system, by demand service handler, tricky lock etc...
+Could be used as VPN dispatcher, by demand service handler, remote launcher etc...
 
-### 1. How it works:
-#### 1.1. tun/tap + pcap mode:
-You should create and configure tun/tap device first, then run **tuninetd**. It starts listening on this interface, until network traffic will be detected. After that, interface immediately releasing and specified command (with -c) will execute. From now on, daemon in monitoring state.
 
----
->For example:
+### 1. How it works
+
+There are two events which **tuninetd** emits. "start", when network activity is detected, and "stop" if sensors no receive packets for certain amount of time. Both of events processed by external executable written on language whatever you like.
+
+#### 1.1. pcap sensor
+You should configure network device first, then run **tuninetd** with **-i** flag and **-f** for filter (optional). It starts listening on the interface, until network traffic will be detected. After that command defined with **-c** will be executed. 
+
 ```sh
-# tuninetd -i tun0 -c /path/to/launcher
+# tuninetd -i tun0 -f "! host 1.2.3.4" -c /path/to/launcher -t 3600
 ```
 >then "start" command from **tuninetd** will be:
 ```sh
 # /path/to/launcher start > /dev/null 2>&1
 ```
->"stop" command in the same manner.
----
 
-After -t seconds of interface idle (no packets through), tuninetd send "stop" command by path that defined with -c, and start listening interface by itself again.
+After **-t** seconds of idle (no packets), **tuninetd** runs "stop" command and wait for activity again to start process over.
 
-Since **tuninetd** based on **libpcap**, you can specify capture filter. To test pcap rules might use tcpdump which is based on the same library.
+Since **tuninetd** based on **libpcap**, it's a good idea to play with filters using **tcpdump** first, which is based on the same library.
 
->**! Notice !** *Modern Linux distributions periodically send 'icmpv6 router solicitation' packets, which cause tuninetd keep or change state. This situation appears in tun/tap mode without pcap filter applied.*
+>**! Notice !** *Modern Linux distributions periodically send 'icmpv6 router solicitation' packets and other broadcast messages, which force tuninetd keep or change its state. So, using filters highly recommended to prevent unexpected behavior even on **tun** devices*
 
-#### 1.2. nflog mode:
+#### 1.2. nflog sensor
 
-In general, behavior the same as tun/tap in part of start/stop. You could simply use netfilter nfgroup (*iptables **NFLOG** target*) to reading packets from. No binding to tun/tap device nor libpcap sensor. This is more lightweight mode and, because of that, - more reliable.
+In general, behavior the same as pcap in terms of start/stop events. You could simply use netfilter nfgroup (*iptables **NFLOG** target*) to capture packets from, and "filter" already in nflog rule(s). No binding to certain network interface required. This is preferable mode since straightforward, lightweight and flexible
+
+```sh
+# tuninetd -n 1 -c /path/to/launcher
+```
+#### 1.3. pcap + nflog
+You could use both sensors at the same time. In this case, event will be triggered from first sensor which receive a network packets. And yes, both sensors should be idle for **-t** seconds, before "stop" event fired
+```sh
+# tuninetd -i enp3s0 -f "arp and host 4.3.2.1" -n 1 -c /path/to/executable/toggletunnel.sh
+```
 
 ### 2. Installation:
-If you're using Debian/Ubuntu please check deb-packages folder. Choose appropriate architecture, then run following command with root privileges:
+If you're using Debian/Ubuntu, please check deb-packages folder. Run following with root privileges:
 ```sh
 # dpkg -i tuninetd_ver_arch.deb
 # apt-get -f install
 ```
-To install from sources download src folder. In case Debian/Ubuntu, you should also install **build-essential**, **libpcap-dev** and **libnetfilter-log-dev** packages first. To build tuninetd just run:<br/>
+To install from sources, please download src folder. In case Debian/Ubuntu, don't forget to install **build-essential**, **libpcap-dev** and **libnetfilter-log-dev** packages first.<br/>
 ```sh
 # cd /download/folder/src
 # make
 ```
 
-Congrats! Tuninend ready to use. Check ./bin folder.
+Congrats! Tuninend ready to use, check ./bin folder.
 
-### 3. Usage:
-#### 3.1. Launch:
+### 3. Usage
+#### 3.1. Launch
 
-```sh
-# tuninetd {-i <ifname> | -n <nflog-group>} -c <path> [-m <iftype>] [-f <filter>] [-t <ttl>] [-d]
+```
+tuninetd -i <ifname> -c <path> [-f <filter>] [-n <nflog-group>] [-t <ttl>] [-d]
+tuninetd -n <nflog-group> -c <path> [-i <ifname> [-f <filter>]] [-t <ttl>] [-d]
+
+-i <ifname>: network interface to use with pcap. Must be up and configured.
+-c <path>: to executable, will be run with 'start' and 'stop' parameter accordingly.
+-n <nflog-group>: netfilter nflog group number (0 - 65535)
+-f <filter>: specify pcap filter if needed, similar to tcpdump. Default none (all packets)
+-t <ttl>: seconds of interface idle before 'stop' command will be run. Default 600.
+-d: daemonize process. Check for errors before use.
+
+-h: print help
+-v: print version
 ```
 
-**-i \<ifname>**: interface to use (tun or tap). Must be up and configured.<br/>
-**-n \<nflog-group>**: iptables NFLOG group ('-i', '-m' and '-f' will be ignored).<br/>
-**-c \<path>**: will execute with 'start' and 'stop' parameter.<br/>
-**-m \<iftype>**: 'tun' or 'tap' mode. By default 'tun', should be set properly.<br/>
-**-f \<filter>**: specify pcap filter, similar to tcpdump<br/>
-**-t \<ttl>**: seconds since last packet before 'stop' command (default is 600).<br/>
-**-d**: daemonize process<br/>
-**-h**: print this help
+#### 3.2. Signals
+SIGHUP  (-1): don't wait ttl, jump to "stop" event right now<br/>
+SIGUSR1 (-10): write to syslog current configuration and state
 
----
-
-#### 3.2. Signals:
-SIGHUP  (-1): switch tuninetd to standby mode (deadlock resolving)<br/>
-SIGUSR1 (-10): write to syslog current state (debug information)
-
-
-
-### 4. Examples:
+### 4. Examples
 Before launching as a daemon make sure there is no errors. In daemon mode tuninetd write status messages and errors to syslog.
 
 ```sh
-# tuninetd -i tun0 -c /test/runtunnel.sh -f "! host 1.2.3.4" -t 3600 -d
-# tuninetd -n 2 -c /test/runtunnel.sh -t 3600 -d
+# tuninetd -n 1 -c /path/to/executable/toggletunnel.sh
+# tuninetd -i tap0 -c /path/to/executable/toggleservice.sh
+# tuninetd -i tun0 -f "! host 1.2.3.4" -c /path/to/executable/somebinary -t 3600 -d
+# tuninetd -i enp3s0 -f "arp and host 4.3.2.1" -n 1 -c /path/to/executable/run.py
 ```
 
-Check ```example``` folder to find some shell scripts.
+Check ```example``` folder to find some scripts.
 
-To create and bring up ```tun``` device could be used following commands:
-```sh
-# ip tuntap add dev tun0 mode tun
-# ip link set tun0 up
+### 5. Logging
+
+Here some syslog example with brief packet info which caused "start" event:
+```
+Nov  1 21:32:14 router1 tuninetd: Success! Tuninetd has been started with PID: 23686
+Nov  1 21:32:14 router1 tuninetd: Binding to interface enp3s0
+Nov  1 21:32:14 router1 tuninetd: Start listening nflog-group 1
+Nov  1 21:32:14 router1 tuninetd: NFLOG: adjust nfnl_rcvbufsiz to 300000
+Nov  1 21:48:34 router1 tuninetd: NFLOG: executing START command...
+Nov  1 21:48:35 router1 tuninetd: |- IPv4 192.168.1.1 > 13.107.42.14, NXT_HDR: 0x06 (TCP)
+Nov  1 21:48:35 router1 tuninetd: |- MAC: 1b:1c:0d:45:a9:e1, DevIndex: 2
+Nov  1 22:08:59 router1 tuninetd: CORE: executing STOP command...
+Nov  1 22:36:07 router1 tuninetd: PCAP: executing START command...
+Nov  1 22:36:08 router1 tuninetd: |- IPv6 fe80::f66d:4ff:fe64:1124 > ff02::2, NXT_HDR: 0x3A (IPv6-ICMP)
+Nov  1 22:36:08 router1 tuninetd: |- MAC: f4:6d:04:64:11:24 > 33:33:00:00:00:02, 802.1Q VID: 3, EtherType: 0x86DD (IPv6)
+
 ```
 
-For more information about routing and configuring network devices, I strongly suggest LARTC how-to.
-
-<br/>
-
----
 ```sh
 # killall -10 tuninetd 
 ```
-syslog:<br/>
 
->Oct 20 18:42:20 router1 tuninetd: SIGUSR1 caught:<br/>
->Oct 20 18:42:20 router1 tuninetd: - Capture engine: nflog group 1<br/>
->Oct 20 18:42:20 router1 tuninetd: - cmd_path = /etc/tuninetd/toggletunnel.sh<br/>
->Oct 20 18:42:20 router1 tuninetd: - TTL = 600 sec.<br/>
->Oct 20 18:42:20 router1 tuninetd: - Current status: up (ON), time since last captured packet: 2 sec.
----
+```
+Nov  1 22:42:17 router1 tuninetd: SIGUSR1 caught:
+Nov  1 22:42:17 router1 tuninetd: - Capture engine: pcap, enp3s0
+Nov  1 22:42:17 router1 tuninetd: -- Pcap filter: "ip6"
+Nov  1 22:42:17 router1 tuninetd: - Capture engine: nflog group 1
+Nov  1 22:42:17 router1 tuninetd: - cmd_path = /etc/tuninetd/toggletunnel.sh
+Nov  1 22:42:17 router1 tuninetd: - TTL = 600 sec.
+Nov  1 22:42:17 router1 tuninetd: - Current status: up (ON), time since last captured packet: 127 sec.
 
+```
 
-### License:
+### 6. Tuntapd
+I've found **tuntapd** in this package, what this for? 
+
+Well, if you're about to use tun/tap device with pcap sensor, you need some program binded to the interface, or pcap can't capture any packets. In some cases, network services release tun/tap when shutting down. Tuntapd could be used to keep device alive for pcap. Start tuntapd from your executable by "stop" event handler, after desired service go down and vise-versa.
+
+### License
 MIT
-### Author:
+### Author
 Paul aka root4root \<root4root at gmail dot com><br/>
-**Any comment/suggestions are welcomed.**
+**Any comments and suggestions are welcomed.**

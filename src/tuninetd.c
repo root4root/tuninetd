@@ -1,13 +1,14 @@
-#include "main.h"
+#include "tuninetd.h"
 
-//Global vars --
+//glob vars--
 short int debug;
 short int status;
-unsigned long ts;
+atomic_ulong ts; // @suppress("Type cannot be resolved")
 unsigned long curts;
+struct globcfg_t globcfg = {};
+//--glob vars
 
-struct globcfg_t globcfg;
-// -- Global vars
+static char progname[] = "tuninetd";
 
 int main(int argc, char *argv[])
 {
@@ -22,8 +23,6 @@ int main(int argc, char *argv[])
     tim.tv_sec = 1;
     tim.tv_nsec = 0;
 
-    //debug = 1;
-    
     signal(SIGTERM, sigterm_handler);
     signal(SIGHUP, sighup_handler);
     signal(SIGUSR1, sigusr_handler);
@@ -57,7 +56,6 @@ void build_config(int argc, char **argv)
     globcfg.pid = 0;
     globcfg.cmd_path = NULL;
     globcfg.ttl = 600;
-    globcfg.dev_mode = IFF_TUN;
     globcfg.nf_group = -1;
 
     opt = getopt( argc, argv, optString);
@@ -88,18 +86,13 @@ void build_config(int argc, char **argv)
             case 'f':
                 globcfg.pcap_filter = optarg;
                 break;
-            case 'm':
-                if (strcmp("tap", optarg)== 0) {
-                    globcfg.dev_mode = IFF_TAP;
-                }
-                break;
             case 'n':
                 globcfg.nf_group = atoi(optarg);
                 break;
             case 'd':
                 globcfg.isdaemon = 1;
                 break;
-            case 'h':   //go to the next case, same behaviour.
+            case 'h':   //go to the next case, same action
             case '?':
                 usage();
                 break;
@@ -115,7 +108,7 @@ void build_config(int argc, char **argv)
 void check_config_and_daemonize()
 {
     if (globcfg.dev_name == NULL && globcfg.nf_group < 0) {
-        message(ERROR, "tun/tap device OR nfgroup must be specified. Abort.");
+        message(ERROR, "Network device or nflog-group must be specified. Abort.");
         usage();
         exit(1);
     }
@@ -150,4 +143,81 @@ void check_config_and_daemonize()
     } else {
         message(INFO, "Started with pid %d", getpid());
     }
+}
+
+void version() {
+    fprintf(stderr, VERSION);
+}
+
+
+void sighup_handler(int signo)
+{
+    if (status == OFF) {
+       message(WARNING, "Warning! Tuninetd is already in standby mode.");
+       return;
+    }
+
+    message(INFO, "SIGHUP caught, switch to standby mode.");
+
+    switch_guard(OFF);
+}
+
+void sigusr_handler(int signo)
+{
+    long delta = 0;
+
+    message(INFO, "SIGUSR1 caught:");
+
+    if (globcfg.dev_name) {
+        message(INFO, "- Capture engine: pcap, %s", globcfg.dev_name);
+        if (globcfg.pcap_filter != NULL) {
+            message(INFO, "-- Pcap filter: \"%s\"", globcfg.pcap_filter);
+        }
+    }
+
+    if (globcfg.nf_group >= 0) {
+        message(INFO, "- Capture engine: nflog group %ld", globcfg.nf_group);
+    }
+
+    message(INFO, "- cmd_path = %s", globcfg.cmd_path);
+    message(INFO, "- TTL = %ld sec.", globcfg.ttl);
+
+    if (status == OFF) {
+        message(INFO, "- Current status: standby (OFF)");
+    } else {
+        delta = curts - ts;
+        message(INFO, "- Current status: up (ON), time since last captured packet: %ld sec.", delta < 0 ? 0 : delta);
+    }
+}
+
+void sigterm_handler(int signo)
+{
+    if (globcfg.nf_group >= 0) {
+        xnflog_stop();
+    }
+
+    exit(0);
+}
+
+void usage(void) {
+    fprintf(stderr, VERSION);
+    fprintf(stderr, "\nEvent emitter with pcap and nflog sensors which could be used at the same time\n");
+    fprintf(stderr, "\nUsage: \t%s -i <ifname> -c <path> [-f <filter>] [-n <nflog-group>] [-t <ttl>] [-d]\n", progname);
+    fprintf(stderr, "\t%s -n <nflog-group> -c <path> [-i <ifname> [-f <filter>]] [-t <ttl>] [-d]\n", progname);
+    fprintf(stderr, "\n\n");
+    fprintf(stderr, "-i <ifname>: network interface to use with pcap. Must be up and configured.\n");
+    fprintf(stderr, "-c <path>: to executable, will be run with 'start' and 'stop' parameter accordingly.\n");
+    fprintf(stderr, "-n <nflog-group>: netfilter nflog group number (0 - 65535)\n");
+    fprintf(stderr, "-f <filter>: specify pcap filter if needed, similar to tcpdump. Default none (all packets)\n");
+    fprintf(stderr, "-t <ttl>: seconds of interface idle before 'stop' command will be run. Default 600.\n");
+    fprintf(stderr, "-d: daemonize process. Check for errors before use.\n\n");
+    fprintf(stderr, "-h: print this help\n\n");
+    fprintf(stderr, "-v: print version\n\n");
+    fprintf(stderr, "\nExamples:\n\n");
+    fprintf(stderr, "# tuninetd -n 1 -c /path/to/executable/toggletunnel.sh\n");
+    fprintf(stderr, "# tuninetd -i tap0 -c /path/to/executable/coolscript.sh\n");
+    fprintf(stderr, "# tuninetd -i tun0 -f \"! host 1.2.3.4\" -c /path/to/executable/binary -t 3600 -d\n");
+    fprintf(stderr, "# tuninetd -i enp3s0 -f \"arp and host 4.3.2.1\" -n 1 -c /path/to/executable/launcher.py\n\n");
+    fprintf(stderr, "More information: https://github.com/root4root/tuninetd \n\n");
+    exit(1);
 }

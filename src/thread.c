@@ -1,8 +1,10 @@
-#include "common.h"
 #include <pthread.h>
 
+#include "common.h"
+#include "xnflog.h"
+#include "xpcap.h"
+
 static pthread_t pcap_x_thread;
-static pthread_t tun_x_thread;
 static pthread_t nflog_x_thread;
 
 static pthread_attr_t attr;
@@ -20,25 +22,29 @@ void thread_init()
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-    if (globcfg.nf_group < 0) {
+    if (globcfg.dev_name) {
         message(INFO, "Binding to interface %s", globcfg.dev_name);
         pthread_create(&pcap_x_thread, &attr, pcap_x, &x);
-        pthread_create(&tun_x_thread, &attr, tun_x, &y);
-    } else {
+    }
+
+    if (globcfg.nf_group >= 0) {
         message(INFO, "Start listening nflog-group %i", globcfg.nf_group);
         pthread_create(&nflog_x_thread, &attr, nflog_x, &y);
     }
+
 }
 
 void switch_state(short action)
 {
     if (status == action) {
+        message(INFO, "|- Event already fired, skipping... (multiple capture engines?)");
         return;
     }
 
     ts = time(NULL);
 
     if (action == ON) {
+
         if (system(globcfg.cmd_path_start) != 0) {
             message(WARNING, "Warning! Executable command doesn't return 0 code (%s)", globcfg.cmd_path_start);
         }
@@ -46,15 +52,13 @@ void switch_state(short action)
         status = ON;
 
     } else { //action == OFF
+
         if (system(globcfg.cmd_path_stop) != 0) {
             message(WARNING, "Warning! Executable command doesn't return 0 code (%s)", globcfg.cmd_path_stop);
         }
 
         status = OFF;
 
-        if (globcfg.nf_group < 0) {
-            pthread_create(&tun_x_thread, &attr, tun_x, &y);
-        }
     }
 }
 

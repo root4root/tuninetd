@@ -1,28 +1,35 @@
+COMPILER = gcc
 CFLAGS = -Wall -O2
 
-all: tuninetd
+all: tuninetd tuntapd
 
-tuninetd: main.o xnflog.o xpcap.o thread.o xtun.o utils.o
+tuninetd: tuninetd.o xnflog.o xpcap.o thread.o logger.o net.o
 	[ -d ./bin ] || mkdir -p ./bin
-	gcc main.o xnflog.o xpcap.o thread.o xtun.o utils.o -o ./bin/tuninetd -lpthread -lpcap -lnetfilter_log -lnfnetlink
+	$(COMPILER) tuninetd.o xnflog.o xpcap.o thread.o logger.o net.o -o ./bin/tuninetd -lpthread -lpcap -lnetfilter_log -lnfnetlink
 	
-main.o: main.c main.h common.h
-	gcc $(CFLAGS) -c main.c
+tuninetd.o: tuninetd.c tuninetd.h common.h
+	$(COMPILER) $(CFLAGS) -c tuninetd.c
 
 xnflog.o: xnflog.c common.h
-	gcc $(CFLAGS) -c xnflog.c
+	$(COMPILER) $(CFLAGS) -c xnflog.c
 	
 xpcap.o: xpcap.c common.h
-	gcc $(CFLAGS) -c xpcap.c
+	$(COMPILER) $(CFLAGS) -c xpcap.c
 	
 thread.o: thread.c common.h
-	gcc $(CFLAGS) -c thread.c
+	$(COMPILER) $(CFLAGS) -c thread.c
 
-xtun.o: xtun.c common.h
-	gcc $(CFLAGS) -c xtun.c
+logger.o: logger.c logger.h
+	$(COMPILER) $(CFLAGS) -c logger.c
 	
-utils.o: utils.c common.h
-	gcc $(CFLAGS) -c utils.c
+net.o: net.c net.h
+	$(COMPILER) $(CFLAGS) -c net.c
+	
+tuntapd: tuntapd.o logger.o net.o
+	$(COMPILER) tuntapd.o logger.o net.o -o ./bin/tuntapd
+	
+tuntapd.o: tuntapd.c tuntapd.h
+	$(COMPILER) $(CFLAGS) -c tuntapd.c 
 	
 clean:
 	rm -f *.o

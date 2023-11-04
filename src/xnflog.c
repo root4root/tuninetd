@@ -1,7 +1,11 @@
-#include "common.h"
 #include <libnfnetlink/libnfnetlink.h>
 #include <libnetfilter_log/libnetfilter_log.h>
 #include <errno.h>
+#include <arpa/inet.h>
+
+#include "common.h"
+#include "net.h"
+#include "xnflog.h"
 
 #define BUFSIZE 65536
 #define NFNLBUFSIZ 150000
@@ -10,7 +14,6 @@ static char *buf;
 static struct nflog_handle *h;
 static struct nflog_g_handle *qh;
 static int fd;
-
 
 static void setnlbufsiz(unsigned int size, struct nflog_handle *h)
 {
@@ -26,7 +29,7 @@ static int callback(struct nflog_g_handle *gh, struct nfgenmsg *nfmsg, struct nf
         return 0;
     }
 
-    uint8_t *payload;
+    char *payload;
 
     int payload_fetch_result = nflog_get_payload(ldata, &payload);
 
@@ -36,23 +39,49 @@ static int callback(struct nflog_g_handle *gh, struct nfgenmsg *nfmsg, struct nf
 
     message(INFO, "NFLOG: executing START command...");
 
-    if (payload[0] >> 4 == 4) { //4 bit MSB IP version. IPv4 in this case. TODO: implement for IPv6
-        message(INFO, "|- IPv4 SRC: %i.%i.%i.%i DST: %i.%i.%i.%i", payload[12], payload[13], payload[14], payload[15], payload[16], payload[17], payload[18], payload[19]);
+    switch_guard(ON);
 
-        struct nfulnl_msg_packet_hw *hw = nflog_get_packet_hw(ldata);
+    headers hdrs = {};
+    uint8_t next_proto = 0;
+    uint8_t ver = protocol_recognition(&hdrs, (uint8_t*)payload);
 
-        if (hw) { //Hardware information only available on inbound or transit packets
-            message(INFO, "|- HWaddr: %02x:%02x:%02x:%02x:%02x:%02x, DevIndex: %u", hw->hw_addr[0], hw->hw_addr[1], hw->hw_addr[2], hw->hw_addr[3], hw->hw_addr[4], hw->hw_addr[5], nflog_get_indev(ldata));
-        }
+    char src_ip[46] = {};
+    char dst_ip[46] = {};
+
+    if (ver == IPv4_VER) {
+        inet_ntop(AF_INET, hdrs.ipv4->src, src_ip, 45);
+        inet_ntop(AF_INET, hdrs.ipv4->dst, dst_ip, 45);
+        next_proto = hdrs.ipv4->next_proto;
     }
 
-    switch_guard(ON);
+    if (ver == IPv6_VER) {
+        inet_ntop(AF_INET6, hdrs.ipv6->src, src_ip, 45);
+        inet_ntop(AF_INET6, hdrs.ipv6->dst, dst_ip, 45);
+        next_proto = hdrs.ipv6->next_proto;
+    }
+
+    if (ver != 0) {
+        message(INFO, "|- IPv%u %s > %s, NXT_HDR: 0x%02X (%s)", ver, src_ip, dst_ip, next_proto, proto_name(next_proto));
+    } else {
+        message(INFO, "|- Not IPv4/6 protocol, L3 info not available");
+    }
+
+    struct nfulnl_msg_packet_hw *hw = nflog_get_packet_hw(ldata);
+
+    if (hw) {
+        message(
+            INFO, "|- MAC: %02x:%02x:%02x:%02x:%02x:%02x, DevIndex: %u",
+            hw->hw_addr[0], hw->hw_addr[1], hw->hw_addr[2],
+            hw->hw_addr[3], hw->hw_addr[4], hw->hw_addr[5],
+            nflog_get_indev(ldata)
+        );
+    }
 
     return 0;
 }
 
 
-void xnflog_start()
+static void xnflog_start()
 {
     buf = calloc(BUFSIZE, sizeof(char));
 
@@ -79,7 +108,7 @@ void xnflog_start()
     qh = nflog_bind_group(h, globcfg.nf_group);
 
     if (!qh) {
-        message(ERROR, "NFLOG: no handle for group %i, can't bind, errno: %i. Abort.", globcfg.nf_group, errno);
+        message(ERROR, "NFLOG: no handle for group %li, can't bind, errno: %i. Abort.", globcfg.nf_group, errno);
         exit(1);
     }
 
@@ -91,13 +120,13 @@ void xnflog_start()
     nflog_callback_register(qh, &callback, NULL);
 
     fd = nflog_fd(h);
-    
 }
 
 void xnflog_stop()
 {
     message(INFO, "NFLOG: Shutting down...");
     shutdown(fd, SHUT_RD);
+    //close(fd);
     nflog_unbind_group(qh);
     nflog_unbind_pf(h, AF_INET);
     nflog_unbind_pf(h, AF_INET6);
@@ -113,8 +142,7 @@ void *nflog_x(void *x_void_ptr)
 
     ssize_t rv;
 
-    while ((rv = recv(fd, (void *)buf, BUFSIZE, 0))) {
-
+    while ((rv = recv(fd, (void *)buf, BUFSIZE - 1, 0))) {
         if (rv >= 0) {
             nflog_handle_packet(h, buf, rv);
         } else if (errno == ENOBUFS) {

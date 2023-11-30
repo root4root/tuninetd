@@ -50,11 +50,13 @@ int main(int argc, char *argv[])
 void build_config(int argc, char **argv)
 {
     int opt = 0;
-    static const char *optString = "i:t:c:f:m:n:dhv";
+    static const char *optString = "i:t:c:f:m:n:w:adhv";
 
+    globcfg.ack_only = 0;
     globcfg.isdaemon = 0;
     globcfg.pid = 0;
     globcfg.cmd_path = NULL;
+    globcfg.pcap_file_path = NULL;
     globcfg.ttl = 600;
     globcfg.nf_group = -1;
 
@@ -62,6 +64,9 @@ void build_config(int argc, char **argv)
 
     while( opt != -1 ) {
         switch( opt ) {
+            case 'a':
+                globcfg.ack_only = 1;
+                break;
             case 'v':
                 version();
                 exit(0);
@@ -82,7 +87,9 @@ void build_config(int argc, char **argv)
                 strcpy(globcfg.cmd_path_stop, optarg);
                 strcat(globcfg.cmd_path_stop, " stop > /dev/null 2>&1");
                 break;
-
+            case 'w':
+                globcfg.pcap_file_path = optarg;
+                break;
             case 'f':
                 globcfg.pcap_filter = optarg;
                 break;
@@ -133,7 +140,9 @@ void check_config_and_daemonize()
             exit(0);
         }
 
-        chdir("/");
+        if (chdir("/") < 0) {
+            message(WARNING, "can't change directory");
+        }
 
         setsid();
 

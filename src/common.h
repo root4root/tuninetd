@@ -13,6 +13,8 @@
 
 #define ON 1
 #define OFF 0
+#define SUCCESS 0
+#define FAIL 1
 
 //glob vars--
 extern short int status;
@@ -20,12 +22,14 @@ extern atomic_ulong ts;     // @suppress("Type cannot be resolved")
 extern unsigned long curts;
 
 extern struct globcfg_t {
+    short int ack_only;
     short int isdaemon;
     pid_t pid;
     char *cmd_path;
     char *cmd_path_start;
     char *cmd_path_stop;
     char *pcap_filter;
+    char *pcap_file_path;
     char *dev_name;
     long nf_group;
     int dev_mode;
@@ -33,8 +37,8 @@ extern struct globcfg_t {
 } globcfg; //--glob vars
 
 //from thread.c--
-void switch_guard(short action); //Used: tuninetd.c, xnflog.c, xpcap.c
-void thread_init();              //Used: tuninetd.c
+uint8_t switch_guard(short action); //Used: tuninetd.c, xnflog.c, xpcap.c
+void thread_init();                 //Used: tuninetd.c
 //--from thread.c
 
 #endif

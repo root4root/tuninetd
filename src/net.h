@@ -8,9 +8,9 @@
 #define SUCCESS 0
 #define FAIL 1
 
-#define ETH_OFFSET 14   // Ethernet II header offset
-#define DOT1Q_OFFSET 18 // 802.1Q offset
-#define IPv6_OFFSET 40  // IPv6 header offset
+#define ETH_HDR_LEN 14   // Ethernet II header offset
+#define DOT1Q_HDR_LEN 18 // 802.1Q offset
+#define IPv6_HDR_LEN 40  // IPv6 header offset
 
 #define NETWORK_ORDER 1
 #define HOST_ORDER 2

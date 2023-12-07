@@ -28,7 +28,7 @@ static void got_packet(u_char *args, const struct pcap_pkthdr *header, const u_c
         return; //Most probably another concurrent thread has switched state just before
     }
 
-    message(INFO, "PCAP: executing START command...");
+    message(INFO, "PCAP: Start command done");
 
     pkt.pkt_h.incl_len = header->caplen;
     pkt.pkt_h.orig_len = header->len;

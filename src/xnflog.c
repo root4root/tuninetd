@@ -48,23 +48,22 @@ static int callback(struct nflog_g_handle *gh, struct nfgenmsg *nfmsg, struct nf
         return 0;
     }
 
-
     if (switch_guard(ON) == FAIL) {
         return 0; //Most probably another concurrent thread has switched state just before
     }
 
-    message(INFO, "NFLOG: executing START command...");
+    message(INFO, "NFLOG: Start command done");
 
     if ((pkt.stack & LINK_MASQ) == 0) {
         uint16_t link_layer_h_len = nflog_get_msg_packet_hwhdrlen(ldata);
         pkt.link_l.h_len = link_layer_h_len;
 
-        if (link_layer_h_len == ETH_OFFSET) {
+        if (link_layer_h_len == ETH_HDR_LEN) {
             pkt.stack |= ETH;
-            payload_length += ETH_OFFSET;
+            payload_length += ETH_HDR_LEN;
         }
 
-        if (link_layer_h_len == DOT1Q_OFFSET) {
+        if (link_layer_h_len == DOT1Q_HDR_LEN) {
             pkt.stack |= DOT1Q;
             payload_length += DOT1Q;
         }

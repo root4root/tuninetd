@@ -164,7 +164,7 @@ static inline uint8_t handle_ipv6(ipv6_h *ipv6, packet *packet)
     if (ipv6->ver >> 4 == IPv6_VER) {
 
         packet->stack |= IPV6;
-        packet->network_l.h_len = IPv6_OFFSET;
+        packet->network_l.h_len = IPv6_HDR_LEN;
         packet->network_l.header = (void*)ipv6;
 
         if (ipv6->next_proto == TCP) {
@@ -181,9 +181,7 @@ static inline uint8_t handle_ipv6(ipv6_h *ipv6, packet *packet)
 /**
  * @brief   thread-safe parse packet to respective layers
  *
- * @param   packet - struct of founded headers by layers (void*)
- *
- * @return  IP version, 0 if not discovered
+ * @param   packet - struct of founded headers by layers
  */
 void stack_recognition(packet *packet)
 {
@@ -198,7 +196,7 @@ void stack_recognition(packet *packet)
     } //First header not an IPv4 for sure
 
     packet->link_l.header = packet->raw_pkt_ptr; //put link layer to stack, assuming it either Ethernet or 802.1Q
-    packet->link_l.h_len = ETH_OFFSET;
+    packet->link_l.h_len = ETH_HDR_LEN;
     packet->stack |= ETH;
 
     ether_h *eth = (ether_h*)packet->raw_pkt_ptr;
@@ -213,7 +211,7 @@ void stack_recognition(packet *packet)
 
     if (eth->etype == 0x0081) { //0x8100 (802.1Q) - network order
         packet->stack &= ~LINK_MASQ;
-        packet->link_l.h_len = DOT1Q_OFFSET;
+        packet->link_l.h_len = DOT1Q_HDR_LEN;
         packet->stack |= DOT1Q;
         dot1q_h *dot1q = (dot1q_h*)packet->raw_pkt_ptr;
 
@@ -234,9 +232,6 @@ void stack_recognition(packet *packet)
         switch (ipv6->next_proto) {
             case 6:     //TCP
                 packet->stack |= TCP;
-                packet->stack &= ~LINK_MASQ;
-                packet->link_l.header = NULL;
-                packet->link_l.h_len = 0;
                 packet->transport_l.header = (void*)(ipv6 + 1);
                 packet->transport_l.h_len = (((tcp_h*)packet->transport_l.header)->data_offset >> 4) * 4;
                 /* no break */
@@ -249,7 +244,10 @@ void stack_recognition(packet *packet)
             case 17:    //UDP
                 packet->stack |= IPV6;
                 packet->network_l.header = packet->raw_pkt_ptr;
-                packet->network_l.h_len = IPv6_OFFSET;
+                packet->network_l.h_len = IPv6_HDR_LEN;
+                packet->stack &= ~LINK_MASQ;
+                packet->link_l.header = NULL;
+                packet->link_l.h_len = 0;
 
         }
 

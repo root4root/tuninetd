@@ -46,32 +46,32 @@ void message(int mylogpriority, const char *msg, ...)
     va_end(argp);
 }
 
-static void to_syslog(packet *pkt)
+static void to_syslog(const packet *pkt)
 {
     uint8_t next_proto = 0;
 
     char src_ip[46] = {};
     char dst_ip[46] = {};
 
-    uint32_t ver = (pkt->stack & NET_MASQ);
-    uint8_t ver_ip = 0;
+    uint32_t net_l_sig = (pkt->stack & NET_MASQ);
+    uint8_t ip_ver = 0;
 
-    if (ver == IPV4) {
+    if (net_l_sig == IPV4) {
         inet_ntop(AF_INET, ((ipv4_h*)pkt->network_l.header)->src, src_ip, 45);
         inet_ntop(AF_INET, ((ipv4_h*)pkt->network_l.header)->dst, dst_ip, 45);
         next_proto = ((ipv4_h*)pkt->network_l.header)->next_proto;
-        ver_ip = IPv4_VER;
+        ip_ver = IPv4_VER;
     }
 
-    if (ver == IPv6_VER) {
+    if (net_l_sig == IPV6) {
         inet_ntop(AF_INET6, ((ipv6_h*)pkt->network_l.header)->src, src_ip, 45);
         inet_ntop(AF_INET6, ((ipv6_h*)pkt->network_l.header)->dst, dst_ip, 45);
         next_proto = ((ipv6_h*)pkt->network_l.header)->next_proto;
-        ver_ip = IPv6_VER;
+        ip_ver = IPv6_VER;
     }
 
-    if (ver_ip != 0) {
-        message(INFO, "|- IPv%u %s > %s, NXT_HDR: 0x%02X (%s)", ver_ip, src_ip, dst_ip, next_proto, proto_name(next_proto));
+    if (ip_ver != 0) {
+        message(INFO, "|- IPv%u %s > %s, NXT_HDR: 0x%02X (%s)", ip_ver, src_ip, dst_ip, next_proto, proto_name(next_proto));
     } else {
         message(INFO, "|- Not IPv4/6 protocol, L3 info not available");
     }
@@ -111,14 +111,14 @@ static void to_syslog(packet *pkt)
     );
 }
 
-static void to_pcap_file(packet *pkt)
+static void to_pcap_file(const packet *pkt)
 {
-    static pcap_file_h pfile_hdr = {0xA1B2C3D4, 0x2, 0x4, 0, 0, 0x40000, 0x1};
+    static const pcap_file_h pfile_hdr = {0xA1B2C3D4, 0x2, 0x4, 0, 0, 0x40000, 0x1};
 
     ssize_t write_result;
 
     if (pkt->stack == 0) {
-        message(ERROR, "Can't write packet to pcap file, unknown headers");
+        message(ERROR, "Logger: can't write packet to pcap file, unknown headers");
         return;
     }
 
@@ -142,22 +142,22 @@ static void to_pcap_file(packet *pkt)
         write_result = write(file, &pfile_hdr, sizeof(pcap_file_h));
     }
 
-    write_result = write(file, &pkt->pkt_h, 16); //packet pcap header
+    packet pkt_copy = *pkt;
+    ether_h eth = {{},{}, (uint16_t)htons(((pkt->stack & NET_MASQ) >> 8))};
 
-    if ((pkt->stack & LINK_MASQ) == 0) {
-        ether_h eth = {{},{}, (uint16_t)((pkt->stack & NET_MASQ) >> 2)};
-        write_result = write(file, &eth, sizeof(ether_h));
-        write_result = write(file, pkt->raw_pkt_ptr, pkt->pkt_h.incl_len);
-        close(file);
-        return;
+    if ((pkt_copy.stack & LINK_MASQ) == 0) {
+        pkt_copy.link_l.header = &eth;
+        pkt_copy.link_l.h_len = ETH_HDR_LEN;
+        pkt_copy.pkt_h.incl_len = pkt_copy.pkt_h.orig_len += ETH_HDR_LEN;
     }
 
-    write_result = write(file, pkt->link_l.header, pkt->link_l.h_len);
+    write_result = write(file, &pkt_copy.pkt_h, sizeof(pcap_pkt_h)); //packet pcap header
+    write_result = write(file, pkt_copy.link_l.header, pkt_copy.link_l.h_len);
 
-    if (pkt->link_l.header == pkt->raw_pkt_ptr) {
-        write_result = write(file, pkt->raw_pkt_ptr + pkt->link_l.h_len, pkt->pkt_h.incl_len - pkt->link_l.h_len);
+    if (pkt_copy.raw_pkt_ptr == pkt_copy.link_l.header) {
+        write_result = write(file, pkt_copy.raw_pkt_ptr + pkt_copy.link_l.h_len, pkt_copy.pkt_h.incl_len - pkt_copy.link_l.h_len);
     } else {
-        write_result = write(file, pkt->raw_pkt_ptr, pkt->pkt_h.incl_len - pkt->link_l.h_len);
+        write_result = write(file, pkt_copy.raw_pkt_ptr, pkt_copy.pkt_h.incl_len - pkt_copy.link_l.h_len);
     }
 
     if (write_result < 0) {
@@ -167,7 +167,7 @@ static void to_pcap_file(packet *pkt)
     close(file);
 }
 
-void log_packet(packet *pkt)
+void log_packet(const packet *pkt)
 {
     to_syslog(pkt);
 

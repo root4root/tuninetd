@@ -9,7 +9,7 @@
 
 void do_debug(const char *, ...);
 void message(int, const char *, ...);
-void log_packet(packet *);
+void log_packet(const packet *);
 int init_pcap_file(const char *);
 
 #endif /* LOGGER_H_ */

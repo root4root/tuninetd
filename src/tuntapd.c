@@ -22,6 +22,14 @@ static void cread(int fd, char *buf, int n)
     pkt.raw_pkt_ptr = (void*)buf;
     stack_recognition(&pkt);
 
+    struct timeval ts;
+    gettimeofday(&ts, NULL);
+
+    pkt.pkt_h.incl_len = nread;
+    pkt.pkt_h.orig_len = nread;
+    pkt.pkt_h.ts_sec = ts.tv_sec;
+    pkt.pkt_h.ts_usec = ts.tv_usec;
+
     log_packet(&pkt);
 }
 
@@ -83,7 +91,7 @@ static int tun_alloc(char *dev, int flags)
 static void build_config(int argc, char **argv)
 {
     int opt = 0;
-    static const char *optString = "i:m:dhv";
+    static const char *optString = "i:m:w:dhv";
 
     globcfg.isdaemon = 0;
     globcfg.pid = 0;
@@ -111,6 +119,9 @@ static void build_config(int argc, char **argv)
                 } else {
                     globcfg.dev_mode = 0;
                 }
+                break;
+            case 'w':
+                globcfg.pcap_file_path = optarg;
                 break;
             case 'h':   //go to the next case, same action
             case '?':

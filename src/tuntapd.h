@@ -3,6 +3,7 @@
 
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
 #include <net/if.h>
 #include <linux/if_tun.h>
 

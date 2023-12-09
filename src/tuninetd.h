@@ -6,7 +6,7 @@
 #include "common.h"
 #include "xnflog.h"
 
-#define VERSION "tuninetd 1.5.RC\n"
+#define VERSION "tuninetd 1.5.0\n"
 
 void build_config(int, char **);
 void check_config_and_daemonize();

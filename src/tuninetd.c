@@ -115,13 +115,13 @@ void build_config(int argc, char **argv)
 void check_config_and_daemonize()
 {
     if (globcfg.dev_name == NULL && globcfg.nf_group < 0) {
-        message(ERROR, "Network device or nflog-group must be specified. Abort.");
+        message(ERROR, "Network device or nflog-group must be specified. Abort");
         usage();
         exit(1);
     }
 
     if (globcfg.cmd_path == NULL) {
-        message(ERROR, "Executable path must be specified. Abort.");
+        message(ERROR, "Executable path must be specified. Abort");
         usage();
         exit(1);
     }
@@ -130,7 +130,7 @@ void check_config_and_daemonize()
         globcfg.pid = fork();
 
         if (globcfg.pid < 0) {
-            message(ERROR, "Can't fork process. Abort.");
+            message(ERROR, "Can't fork process. Abort");
             exit(1);
         }
 
@@ -141,7 +141,7 @@ void check_config_and_daemonize()
         }
 
         if (chdir("/") < 0) {
-            message(WARNING, "can't change directory");
+            message(WARNING, "Can't change directory");
         }
 
         setsid();
@@ -162,11 +162,11 @@ void version() {
 void sighup_handler(int signo)
 {
     if (status == OFF) {
-       message(WARNING, "Warning! Tuninetd is already in standby mode.");
+       message(WARNING, "Warning! Tuninetd is already in standby mode");
        return;
     }
 
-    message(INFO, "SIGHUP caught, switch to standby mode.");
+    message(INFO, "SIGHUP caught, switch to standby mode");
 
     switch_guard(OFF);
 }
@@ -178,32 +178,32 @@ void sigusr_handler(int signo)
     message(INFO, "SIGUSR1 caught:");
 
     if (globcfg.dev_name) {
-        message(INFO, "- Capture engine: pcap, %s", globcfg.dev_name);
+        message(INFO, "- capture engine: pcap, %s", globcfg.dev_name);
         if (globcfg.pcap_filter != NULL) {
-            message(INFO, "-- Pcap filter: \"%s\"", globcfg.pcap_filter);
+            message(INFO, "-- pcap filter: \"%s\"", globcfg.pcap_filter);
         }
     }
 
     if (globcfg.nf_group >= 0) {
-        message(INFO, "- Capture engine: nflog group %ld", globcfg.nf_group);
+        message(INFO, "- capture engine: nflog group %ld", globcfg.nf_group);
     }
 
     if (globcfg.ack_only == ON) {
-        message(INFO, "- Using packets with tcp[ack] flag to reset TTL timer");
+        message(INFO, "- using packets with tcp[ack] flag to reset TTL timer");
     }
 
     if (globcfg.pcap_file_path != NULL) {
-        message(INFO, "- File to dump start event packets (pcap format): %s", globcfg.pcap_file_path);
+        message(INFO, "- file to dump start event packets (pcap format): %s", globcfg.pcap_file_path);
     }
 
-    message(INFO, "- cmd_path = %s", globcfg.cmd_path);
-    message(INFO, "- TTL = %ld sec.", globcfg.ttl);
+    message(INFO, "- event path: %s", globcfg.cmd_path);
+    message(INFO, "- TTL: %ld sec.", globcfg.ttl);
 
     if (status == OFF) {
-        message(INFO, "- Current status: standby (OFF)");
+        message(INFO, "- current status: standby (OFF)");
     } else {
         delta = curts - ts;
-        message(INFO, "- Current status: up (ON), time since last captured packet: %ld sec.", delta < 0 ? 0 : delta);
+        message(INFO, "- current status: up (ON), time since last captured packet: %ld sec.", delta < 0 ? 0 : delta);
     }
 }
 
@@ -222,14 +222,14 @@ void usage(void) {
     fprintf(stderr, "\nUsage: \t%s -i <ifname> -c <path> [-a] [-d] [-f <filter>] [-n <nflog-group>] [-t <ttl>] [-w <path>]\n", progname);
     fprintf(stderr, "\t%s -n <nflog-group> -c <path> [-a] [-d] [-i <ifname> [-f <filter>]] [-t <ttl>] [-w <path>]\n", progname);
     fprintf(stderr, "\n\n");
-    fprintf(stderr, "-a: use only tcp[ack] packets to reset TTL timer (see -t)\n");
-    fprintf(stderr, "-c <path>: to executable, will be run with 'start' and 'stop' parameter accordingly.\n");
-    fprintf(stderr, "-d: daemonize process. Check for errors before use.\n");
-    fprintf(stderr, "-f <filter>: specify pcap filter if needed, similar to tcpdump. Default none (all packets)\n");
-    fprintf(stderr, "-i <ifname>: network interface to use with pcap. Must be up and configured.\n");
-    fprintf(stderr, "-n <nflog-group>: netfilter nflog group number (0 - 65535)\n");
-    fprintf(stderr, "-t <ttl>: seconds of interface idle before 'stop' command will be run. By default 600.\n");
-    fprintf(stderr, "-w <path>: dump \"start event\" packets to pcap-savefile as well.\n\n");
+    fprintf(stderr, "-a: use only tcp[ack] packets to zero TTL timer (see -t)\n");
+    fprintf(stderr, "-c <path>: to executable, will be run with 'start' and 'stop' parameter accordingly\n");
+    fprintf(stderr, "-d: daemonize process\n");
+    fprintf(stderr, "-f <filter>: apply packet filter, similar to tcpdump\n");
+    fprintf(stderr, "-i <ifname>: network interface to use with pcap\n");
+    fprintf(stderr, "-n <nflog-group>: netfilter nflog group ID\n");
+    fprintf(stderr, "-t <ttl>: seconds of interface idle before 'stop' command will be run. Default 600\n");
+    fprintf(stderr, "-w <path>: dump \"start event\" packets to pcap-savefile as well\n\n");
     fprintf(stderr, "-h: print this help\n\n");
     fprintf(stderr, "-v: print version\n\n");
     fprintf(stderr, "\nExamples:\n\n");

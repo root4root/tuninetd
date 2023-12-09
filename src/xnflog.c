@@ -52,7 +52,7 @@ static int callback(struct nflog_g_handle *gh, struct nfgenmsg *nfmsg, struct nf
         return 0; //Most probably another concurrent thread has switched state just before
     }
 
-    message(INFO, "NFLOG: Start command done");
+    message(INFO, "NFLOG: start command done");
 
     if ((pkt.stack & LINK_MASQ) == 0) {
         uint16_t link_layer_h_len = nflog_get_msg_packet_hwhdrlen(ldata);
@@ -98,7 +98,7 @@ static void xnflog_start()
     short int pf_available = 3; //AF_INET, AF_INET6, AF_BRIDGE
 
     if (!h) {
-        message(ERROR, "NFLOG: error during nflog_open(). Abort.");
+        message(ERROR, "NFLOG: error during nflog_open(). Abort");
         exit(1);
     }
 
@@ -116,12 +116,12 @@ static void xnflog_start()
     qh = nflog_bind_group(h, globcfg.nf_group);
 
     if (!qh) {
-        message(ERROR, "NFLOG: no handle for group %li, can't bind, errno: %i. Abort.", globcfg.nf_group, errno);
+        message(ERROR, "NFLOG: no handle for group %li, can't bind, errno: %i. Abort", globcfg.nf_group, errno);
         exit(1);
     }
 
     if (nflog_set_mode(qh, NFULNL_COPY_PACKET, 0xffff) < 0) {
-        message(ERROR, "NFLOG: can't set NFULNL_COPY_PACKET mode. Abort.");
+        message(ERROR, "NFLOG: can't set NFULNL_COPY_PACKET mode. Abort");
         exit(1);
     }
 
@@ -160,7 +160,7 @@ void *nflog_x(void *x_void_ptr)
         }
     }
 
-    message(WARNING, "NFLOG: shut down with code %i. Check errno.h for details.", errno);
+    message(WARNING, "NFLOG: shut down with code %i. Check errno.h for details", errno);
 
     xnflog_stop();
 

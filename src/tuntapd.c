@@ -10,7 +10,7 @@ static void cread(int fd, char *buf, int n)
     int nread;
 
     if ((nread = read(fd, buf, n)) < 0) {
-        message(ERROR, "%s: error, while reading data. Abort.", progname);
+        message(ERROR, "%s: error, while reading data. Abort", progname);
         exit(1);
     }
 
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 
 
     if ((tap_fd = tun_alloc(globcfg.dev_name, globcfg.dev_mode | IFF_NO_PI)) < 0) {
-        message(ERROR, "%s: mapping to tun/tap interface %s mode 0x%04x failed. Abort.", progname, globcfg.dev_name, globcfg.dev_mode);
+        message(ERROR, "%s: mapping to tun/tap interface %s mode 0x%04x failed. Abort", progname, globcfg.dev_name, globcfg.dev_mode);
         exit(1);
     }
 
@@ -139,13 +139,13 @@ static void build_config(int argc, char **argv)
 static void check_config_and_daemonize()
 {
     if (globcfg.dev_name == NULL) {
-        message(ERROR, "%s: tun/tap device must be specified. Abort.", progname);
+        message(ERROR, "%s: tun/tap device must be specified. Abort", progname);
         usage();
         exit(1);
     }
 
     if (globcfg.dev_mode != IFF_TUN && globcfg.dev_mode != IFF_TAP) {
-        message(ERROR, "%s: device mode must be \"tun\" or \"tap\". Abort.", progname);
+        message(ERROR, "%s: device mode must be \"tun\" or \"tap\". Abort", progname);
         exit(1);
     }
 
@@ -153,7 +153,7 @@ static void check_config_and_daemonize()
         globcfg.pid = fork();
 
         if (globcfg.pid < 0) {
-            message(ERROR, "%s: can't fork process. Abort.", progname);
+            message(ERROR, "%s: can't fork process. Abort", progname);
             exit(1);
         }
 
@@ -179,7 +179,7 @@ static void check_config_and_daemonize()
 
 static void sighup_handler(int signo)
 {
-    message(WARNING, "%s: SIGHUP caught. NoOp.", progname);
+    message(WARNING, "%s: SIGHUP caught. NoOp", progname);
 }
 
 static void sigusr_handler(int signo)
@@ -195,11 +195,11 @@ static void sigterm_handler(int signo)
 
 static void usage(void) {
     fprintf(stderr, VERSION);
-    fprintf(stderr, "\nStub for tun/tap device to keep it alive.\n");
+    fprintf(stderr, "\nStub for tun/tap device to keep it alive\n");
     fprintf(stderr, "\nUsage: %s -i <ifname> [-m <iftype>] [-d]\n\n", progname);
-    fprintf(stderr, "-i <ifname>: interface to use with.\n");
-    fprintf(stderr, "-m <iftype>: 'tun' or 'tap'. Default is 'tun'. \n");
-    fprintf(stderr, "-d: daemonize process. Check for errors before use.\n\n");
+    fprintf(stderr, "-i <ifname>: interface to use with\n");
+    fprintf(stderr, "-m <iftype>: 'tun' or 'tap'. Default is 'tun'\n");
+    fprintf(stderr, "-d: daemonize process. Check for errors before use\n\n");
     fprintf(stderr, "-h: print this help\n");
     fprintf(stderr, "-v: print version\n\n");
     exit(1);

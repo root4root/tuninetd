@@ -132,7 +132,7 @@ static void to_pcap_file(const packet *pkt)
     struct stat st;
 
     if (fstat(file, &st) != 0) {
-        message(ERROR, "Logger: can't get stat about pcap file");
+        message(ERROR, "Logger: can't get pcap file status");
         close(file);
         return;
     }

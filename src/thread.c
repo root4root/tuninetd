@@ -34,11 +34,12 @@ void thread_init()
 
 }
 
-void switch_state(short action)
+static uint8_t switch_state(short action)
 {
+
     if (status == action) {
         message(INFO, "|- Event already fired, skipping... (multiple capture engines?)");
-        return;
+        return FAIL;
     }
 
     ts = time(NULL);
@@ -60,11 +61,23 @@ void switch_state(short action)
         status = OFF;
 
     }
+    return SUCCESS;
 }
 
-void switch_guard(short action)
+/**
+ * @brief   thread-safe event firing
+ *
+ * @param   action short - OFF(0)/ON(1)
+ *
+ * @return  status uint8_t: 0 - SUCCESS, 1 - FAIL
+ */
+uint8_t switch_guard(short action)
 {
+    uint8_t status = 0;
+
     pthread_mutex_lock(&lock);
-    switch_state(action);
+    status = switch_state(action);
     pthread_mutex_unlock(&lock);
+
+    return status;
 }

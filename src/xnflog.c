@@ -2,6 +2,7 @@
 #include <libnetfilter_log/libnetfilter_log.h>
 #include <errno.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 
 #include "common.h"
 #include "net.h"
@@ -23,59 +24,66 @@ static void setnlbufsiz(unsigned int size, struct nflog_handle *h)
 
 static int callback(struct nflog_g_handle *gh, struct nfgenmsg *nfmsg, struct nflog_data *ldata, void *data)
 {
-    ts = curts;
-
-    if (status == ON) {
+    if (globcfg.ack_only == OFF && status == ON) {
+        ts = curts;
         return 0;
     }
 
     char *payload;
 
-    int payload_fetch_result = nflog_get_payload(ldata, &payload);
+    int payload_length = nflog_get_payload(ldata, &payload);
 
-    if (payload_fetch_result < 0) {
+    if (payload_length < 0) {
         return 0;
     }
 
-    message(INFO, "NFLOG: executing START command...");
+    packet pkt = {};
+    pkt.raw_pkt_ptr = (void*)payload;
+    stack_recognition(&pkt);
 
-    switch_guard(ON);
-
-    headers hdrs = {};
-    uint8_t next_proto = 0;
-    uint8_t ver = protocol_recognition(&hdrs, (uint8_t*)payload);
-
-    char src_ip[46] = {};
-    char dst_ip[46] = {};
-
-    if (ver == IPv4_VER) {
-        inet_ntop(AF_INET, hdrs.ipv4->src, src_ip, 45);
-        inet_ntop(AF_INET, hdrs.ipv4->dst, dst_ip, 45);
-        next_proto = hdrs.ipv4->next_proto;
+    if (globcfg.ack_only == ON && status == ON) {
+        if ((pkt.stack & TRANSP_MASQ) == TCP && (((tcp_h*)pkt.transport_l.header)->flags & ACK) > 0) {
+            ts = curts;
+        }
+        return 0;
     }
 
-    if (ver == IPv6_VER) {
-        inet_ntop(AF_INET6, hdrs.ipv6->src, src_ip, 45);
-        inet_ntop(AF_INET6, hdrs.ipv6->dst, dst_ip, 45);
-        next_proto = hdrs.ipv6->next_proto;
+    if (switch_guard(ON) == FAIL) {
+        return 0; //Most probably another concurrent thread has switched state just before
     }
 
-    if (ver != 0) {
-        message(INFO, "|- IPv%u %s > %s, NXT_HDR: 0x%02X (%s)", ver, src_ip, dst_ip, next_proto, proto_name(next_proto));
-    } else {
-        message(INFO, "|- Not IPv4/6 protocol, L3 info not available");
+    message(INFO, "NFLOG: start command done");
+
+    if ((pkt.stack & LINK_MASQ) == 0) {
+        uint16_t link_layer_h_len = nflog_get_msg_packet_hwhdrlen(ldata);
+        pkt.link_l.h_len = link_layer_h_len;
+
+        if (link_layer_h_len == ETH_HDR_LEN) {
+            pkt.stack |= ETH;
+            payload_length += ETH_HDR_LEN;
+        }
+
+        if (link_layer_h_len == DOT1Q_HDR_LEN) {
+            pkt.stack |= DOT1Q;
+            payload_length += DOT1Q;
+        }
+
+        pkt.link_l.header = nflog_get_msg_packet_hwhdr(ldata);
     }
 
-    struct nfulnl_msg_packet_hw *hw = nflog_get_packet_hw(ldata);
 
-    if (hw) {
-        message(
-            INFO, "|- MAC: %02x:%02x:%02x:%02x:%02x:%02x, DevIndex: %u",
-            hw->hw_addr[0], hw->hw_addr[1], hw->hw_addr[2],
-            hw->hw_addr[3], hw->hw_addr[4], hw->hw_addr[5],
-            nflog_get_indev(ldata)
-        );
+    struct timeval ts;
+
+    if (nflog_get_timestamp(ldata, &ts) < 0) {
+        gettimeofday(&ts, NULL);
     }
+
+    pkt.pkt_h.incl_len = payload_length;
+    pkt.pkt_h.orig_len = payload_length;
+    pkt.pkt_h.ts_sec = ts.tv_sec;
+    pkt.pkt_h.ts_usec = ts.tv_usec;
+
+    log_packet(&pkt);
 
     return 0;
 }
@@ -90,7 +98,7 @@ static void xnflog_start()
     short int pf_available = 3; //AF_INET, AF_INET6, AF_BRIDGE
 
     if (!h) {
-        message(ERROR, "NFLOG: error during nflog_open(). Abort.");
+        message(ERROR, "NFLOG: error during nflog_open(). Abort");
         exit(1);
     }
 
@@ -108,12 +116,12 @@ static void xnflog_start()
     qh = nflog_bind_group(h, globcfg.nf_group);
 
     if (!qh) {
-        message(ERROR, "NFLOG: no handle for group %li, can't bind, errno: %i. Abort.", globcfg.nf_group, errno);
+        message(ERROR, "NFLOG: no handle for group %li, can't bind, errno: %i. Abort", globcfg.nf_group, errno);
         exit(1);
     }
 
     if (nflog_set_mode(qh, NFULNL_COPY_PACKET, 0xffff) < 0) {
-        message(ERROR, "NFLOG: can't set NFULNL_COPY_PACKET mode. Abort.");
+        message(ERROR, "NFLOG: can't set NFULNL_COPY_PACKET mode. Abort");
         exit(1);
     }
 
@@ -152,7 +160,7 @@ void *nflog_x(void *x_void_ptr)
         }
     }
 
-    message(WARNING, "NFLOG: shut down with code %i. Check errno.h for details.", errno);
+    message(WARNING, "NFLOG: shut down with code %i. Check errno.h for details", errno);
 
     xnflog_stop();
 

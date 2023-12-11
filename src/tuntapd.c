@@ -10,7 +10,7 @@ static void cread(int fd, char *buf, int n)
     int nread;
 
     if ((nread = read(fd, buf, n)) < 0) {
-        message(ERROR, "%s: error, while reading data. Abort.", progname);
+        message(ERROR, "%s: error, while reading data. Abort", progname);
         exit(1);
     }
 
@@ -18,63 +18,19 @@ static void cread(int fd, char *buf, int n)
         return;
     }
 
-    headers hdrs = {};
-    uint8_t next_proto = 0;
-    uint8_t ver = protocol_recognition(&hdrs, (uint8_t*)buf);
+    packet pkt = {};
+    pkt.raw_pkt_ptr = (void*)buf;
+    stack_recognition(&pkt);
 
-    char src_ip[46] = {};
-    char dst_ip[46] = {};
+    struct timeval ts;
+    gettimeofday(&ts, NULL);
 
-    if (ver == IPv4_VER) {
-        inet_ntop(AF_INET, hdrs.ipv4->src, src_ip, 45);
-        inet_ntop(AF_INET, hdrs.ipv4->dst, dst_ip, 45);
-        next_proto = hdrs.ipv4->next_proto;
-    }
+    pkt.pkt_h.incl_len = nread;
+    pkt.pkt_h.orig_len = nread;
+    pkt.pkt_h.ts_sec = ts.tv_sec;
+    pkt.pkt_h.ts_usec = ts.tv_usec;
 
-    if (ver == IPv6_VER) {
-        inet_ntop(AF_INET6, hdrs.ipv6->src, src_ip, 45);
-        inet_ntop(AF_INET6, hdrs.ipv6->dst, dst_ip, 45);
-        next_proto = hdrs.ipv6->next_proto;
-    }
-
-    if (ver != 0) {
-        message(INFO, "|- IPv%u %s > %s, NXT_HDR: 0x%02X (%s)", ver, src_ip, dst_ip, next_proto, proto_name(next_proto));
-    } else {
-        message(INFO, "|- Not IPv4/6 protocol, L3 info not available");
-    }
-
-    if (hdrs.ethernet == NULL) {
-        return;
-    }
-
-    if (hdrs.ethernet->etype == 0x0081) { //VLAN 0x8100 NETWORK_ORDER
-
-        uint16_t vid = ntohs(hdrs.ethernet->vlan_h[1]) & 0x0fff;
-
-        message(
-            INFO, "|- MAC: %02x:%02x:%02x:%02x:%02x:%02x > %02x:%02x:%02x:%02x:%02x:%02x, 802.1Q VID: %u, EtherType: 0x%04X (%s)",
-            hdrs.ethernet->src_mac[0], hdrs.ethernet->src_mac[1], hdrs.ethernet->src_mac[2],
-            hdrs.ethernet->src_mac[3], hdrs.ethernet->src_mac[4], hdrs.ethernet->src_mac[5],
-            hdrs.ethernet->dst_mac[0], hdrs.ethernet->dst_mac[1], hdrs.ethernet->dst_mac[2],
-            hdrs.ethernet->dst_mac[3], hdrs.ethernet->dst_mac[4], hdrs.ethernet->dst_mac[5],
-            vid,
-            ntohs(hdrs.ethernet->vlan_etype),
-            ethertype_name(hdrs.ethernet->vlan_etype, NETWORK_ORDER)
-        );
-
-        return;
-    }
-
-    message(
-        INFO, "|- MAC: %02x:%02x:%02x:%02x:%02x:%02x > %02x:%02x:%02x:%02x:%02x:%02x, EtherType: 0x%04X (%s)",
-        hdrs.ethernet->src_mac[0], hdrs.ethernet->src_mac[1], hdrs.ethernet->src_mac[2],
-        hdrs.ethernet->src_mac[3], hdrs.ethernet->src_mac[4], hdrs.ethernet->src_mac[5],
-        hdrs.ethernet->dst_mac[0], hdrs.ethernet->dst_mac[1], hdrs.ethernet->dst_mac[2],
-        hdrs.ethernet->dst_mac[3], hdrs.ethernet->dst_mac[4], hdrs.ethernet->dst_mac[5],
-        ntohs(hdrs.ethernet->etype),
-        ethertype_name(hdrs.ethernet->etype, NETWORK_ORDER)
-    );
-
+    log_packet(&pkt);
 }
 
 int main(int argc, char *argv[])
@@ -92,7 +48,7 @@ int main(int argc, char *argv[])
 
 
     if ((tap_fd = tun_alloc(globcfg.dev_name, globcfg.dev_mode | IFF_NO_PI)) < 0) {
-        message(ERROR, "%s: mapping to tun/tap interface %s mode 0x%04x failed. Abort.", progname, globcfg.dev_name, globcfg.dev_mode);
+        message(ERROR, "%s: mapping to tun/tap interface %s mode 0x%04x failed. Abort", progname, globcfg.dev_name, globcfg.dev_mode);
         exit(1);
     }
 
@@ -135,10 +91,11 @@ static int tun_alloc(char *dev, int flags)
 static void build_config(int argc, char **argv)
 {
     int opt = 0;
-    static const char *optString = "i:m:dhv";
+    static const char *optString = "i:m:w:dhv";
 
     globcfg.isdaemon = 0;
     globcfg.pid = 0;
+    globcfg.pcap_file_path = NULL;
     globcfg.dev_mode = IFF_TUN;
 
     opt = getopt(argc, argv, optString);
@@ -163,6 +120,9 @@ static void build_config(int argc, char **argv)
                     globcfg.dev_mode = 0;
                 }
                 break;
+            case 'w':
+                globcfg.pcap_file_path = optarg;
+                break;
             case 'h':   //go to the next case, same action
             case '?':
                 usage();
@@ -179,13 +139,13 @@ static void build_config(int argc, char **argv)
 static void check_config_and_daemonize()
 {
     if (globcfg.dev_name == NULL) {
-        message(ERROR, "%s: tun/tap device must be specified. Abort.", progname);
+        message(ERROR, "%s: tun/tap device must be specified. Abort", progname);
         usage();
         exit(1);
     }
 
     if (globcfg.dev_mode != IFF_TUN && globcfg.dev_mode != IFF_TAP) {
-        message(ERROR, "%s: device mode must be \"tun\" or \"tap\". Abort.", progname);
+        message(ERROR, "%s: device mode must be \"tun\" or \"tap\". Abort", progname);
         exit(1);
     }
 
@@ -193,7 +153,7 @@ static void check_config_and_daemonize()
         globcfg.pid = fork();
 
         if (globcfg.pid < 0) {
-            message(ERROR, "%s: can't fork process. Abort.", progname);
+            message(ERROR, "%s: can't fork process. Abort", progname);
             exit(1);
         }
 
@@ -203,7 +163,9 @@ static void check_config_and_daemonize()
             exit(0);
         }
 
-        chdir("/");
+        if (chdir("/") < 0) {
+            message(WARNING, "can't change directory");
+        }
 
         setsid();
 
@@ -217,7 +179,7 @@ static void check_config_and_daemonize()
 
 static void sighup_handler(int signo)
 {
-    message(WARNING, "%s: SIGHUP caught. NoOp.", progname);
+    message(WARNING, "%s: SIGHUP caught. NoOp", progname);
 }
 
 static void sigusr_handler(int signo)
@@ -233,11 +195,11 @@ static void sigterm_handler(int signo)
 
 static void usage(void) {
     fprintf(stderr, VERSION);
-    fprintf(stderr, "\nStub for tun/tap device to keep it alive.\n");
+    fprintf(stderr, "\nStub for tun/tap device to keep it alive\n");
     fprintf(stderr, "\nUsage: %s -i <ifname> [-m <iftype>] [-d]\n\n", progname);
-    fprintf(stderr, "-i <ifname>: interface to use with.\n");
-    fprintf(stderr, "-m <iftype>: 'tun' or 'tap'. Default is 'tun'. \n");
-    fprintf(stderr, "-d: daemonize process. Check for errors before use.\n\n");
+    fprintf(stderr, "-i <ifname>: interface to use with\n");
+    fprintf(stderr, "-m <iftype>: 'tun' or 'tap'. Default is 'tun'\n");
+    fprintf(stderr, "-d: daemonize process. Check for errors before use\n\n");
     fprintf(stderr, "-h: print this help\n");
     fprintf(stderr, "-v: print version\n\n");
     exit(1);

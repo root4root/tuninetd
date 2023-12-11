@@ -57,17 +57,19 @@ Congrats! Tuninend ready to use, check ./bin folder.
 #### 3.1. Launch
 
 ```
-tuninetd -i <ifname> -c <path> [-f <filter>] [-n <nflog-group>] [-t <ttl>] [-d]
-tuninetd -n <nflog-group> -c <path> [-i <ifname> [-f <filter>]] [-t <ttl>] [-d]
+tuninetd -i <ifname> -c <path> [-a] [-d] [-f <filter>] [-n <nflog-group>] [-t <ttl>] [-w <path>]
+tuninetd -n <nflog-group> -c <path> [-a] [-d] [-i <ifname> [-f <filter>]] [-t <ttl>] [-w <path>]
 
--i <ifname>: network interface to use with pcap. Must be up and configured.
--c <path>: to executable, will be run with 'start' and 'stop' parameter accordingly.
--n <nflog-group>: netfilter nflog group number (0 - 65535)
--f <filter>: specify pcap filter if needed, similar to tcpdump. Default none (all packets)
--t <ttl>: seconds of interface idle before 'stop' command will be run. Default 600.
--d: daemonize process. Check for errors before use.
+-a: use only tcp[ack] packets to zero TTL timer (see -t)
+-c <path>: to executable, will be run with 'start' and 'stop' parameter accordingly
+-d: daemonize process
+-f <filter>: apply packet filter, similar to tcpdump
+-i <ifname>: network interface to use with pcap
+-n <nflog-group>: netfilter nflog group ID
+-t <ttl>: seconds of interface idle before 'stop' command will be run. Default 600
+-w <path>: dump "start event" packets to pcap-savefile as well
 
--h: print help
+-h: print this help
 -v: print version
 ```
 
@@ -79,8 +81,8 @@ SIGUSR1 (-10): write to syslog current configuration and state
 Before launching as a daemon make sure there is no errors. In daemon mode tuninetd write status messages and errors to syslog.
 
 ```sh
-# tuninetd -n 1 -c /path/to/executable/toggletunnel.sh
-# tuninetd -i tap0 -c /path/to/executable/toggleservice.sh
+# tuninetd -n 1 -c /path/to/executable/toggletunnel.sh -w /path/to/pcap-savefile
+# tuninetd -i tap0 -c /path/to/executable/toggleservice.sh -a
 # tuninetd -i tun0 -f "! host 1.2.3.4" -c /path/to/executable/somebinary -t 3600 -d
 # tuninetd -i enp3s0 -f "arp and host 4.3.2.1" -n 1 -c /path/to/executable/run.py
 ```
@@ -95,11 +97,11 @@ Nov  1 21:32:14 router1 tuninetd: Success! Tuninetd has been started with PID: 2
 Nov  1 21:32:14 router1 tuninetd: Binding to interface enp3s0
 Nov  1 21:32:14 router1 tuninetd: Start listening nflog-group 1
 Nov  1 21:32:14 router1 tuninetd: NFLOG: adjust nfnl_rcvbufsiz to 300000
-Nov  1 21:48:34 router1 tuninetd: NFLOG: executing START command...
+Nov  1 21:48:34 router1 tuninetd: NFLOG: start command done
 Nov  1 21:48:35 router1 tuninetd: |- IPv4 192.168.1.1 > 13.107.42.14, NXT_HDR: 0x06 (TCP)
-Nov  1 21:48:35 router1 tuninetd: |- MAC: 1b:1c:0d:45:a9:e1, DevIndex: 2
+Nov  1 21:48:35 router1 tuninetd: |- MAC: 1b:1c:0d:45:a9:e1 > f4:6d:04:64:11:25, EtherType: 0x0800 (IPv4)
 Nov  1 22:08:59 router1 tuninetd: CORE: executing STOP command...
-Nov  1 22:36:07 router1 tuninetd: PCAP: executing START command...
+Nov  1 22:36:07 router1 tuninetd: PCAP: start command done
 Nov  1 22:36:08 router1 tuninetd: |- IPv6 fe80::f66d:4ff:fe64:1124 > ff02::2, NXT_HDR: 0x3A (IPv6-ICMP)
 Nov  1 22:36:08 router1 tuninetd: |- MAC: f4:6d:04:64:11:24 > 33:33:00:00:00:02, 802.1Q VID: 3, EtherType: 0x86DD (IPv6)
 
@@ -111,12 +113,14 @@ Nov  1 22:36:08 router1 tuninetd: |- MAC: f4:6d:04:64:11:24 > 33:33:00:00:00:02,
 
 ```
 Nov  1 22:42:17 router1 tuninetd: SIGUSR1 caught:
-Nov  1 22:42:17 router1 tuninetd: - Capture engine: pcap, enp3s0
-Nov  1 22:42:17 router1 tuninetd: -- Pcap filter: "ip6"
-Nov  1 22:42:17 router1 tuninetd: - Capture engine: nflog group 1
-Nov  1 22:42:17 router1 tuninetd: - cmd_path = /etc/tuninetd/toggletunnel.sh
-Nov  1 22:42:17 router1 tuninetd: - TTL = 600 sec.
-Nov  1 22:42:17 router1 tuninetd: - Current status: up (ON), time since last captured packet: 127 sec.
+Nov  1 22:42:17 router1 tuninetd: - capture engine: pcap, enp3s0
+Nov  1 22:42:17 router1 tuninetd: -- pcap filter: "ip6"
+Nov  1 22:42:17 router1 tuninetd: - capture engine: nflog group 1
+Nov  1 22:42:17 router1 tuninetd: - using packets with tcp[ack] flag to reset TTL timer
+Nov  1 22:42:17 router1 tuninetd: - file to dump start event packets (pcap format): /path/to/pcap.file
+Nov  1 22:42:17 router1 tuninetd: - event path: /etc/tuninetd/toggletunnel.sh
+Nov  1 22:42:17 router1 tuninetd: - TTL: 600 sec.
+Nov  1 22:42:17 router1 tuninetd: - current status: up (ON), time since last captured packet: 112 sec.
 
 ```
 

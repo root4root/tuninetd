@@ -36,7 +36,7 @@ void message(int mylogpriority, const char *msg, ...)
 
     if (globcfg.isdaemon == 0) {
         vfprintf(stderr, msg, argp);
-        vfprintf(stderr, "\n", NULL);
+        fprintf(stderr, "\n");
     } else {
         openlog("tuninetd", 0, LOG_USER);
         vsyslog(syslogpriority, msg, argp);

@@ -1,40 +1,40 @@
 # tuninetd
 
-Network event emitter with **pcap** and **nflog** sensors.
+Network event emitter with **pcap** and **nflog** sensors
 
-Could be used as VPN dispatcher, by demand service handler, remote launcher etc...
+Could be used as a VPN dispatcher, by demand service handler, remote launcher etc...
 
 
 ### 1. How it works
 
-There are two events which **tuninetd** emits. "start", when network activity is detected, and "stop" if sensors no receive packets for certain amount of time. Both of events processed by external executable written on language whatever you like.
+There are two events which **tuninetd** emits: 'start', when network activity is detected, and 'stop', if sensors receive no packets for a certain amount of time. Both events are processed by an external executable written in whatever language you like
 
 #### 1.1. pcap sensor
-You should configure network device first, then run **tuninetd** with **-i** flag and **-f** for filter (optional). It starts listening on the interface, until network traffic will be detected. After that command defined with **-c** will be executed. 
+Configure the network device first, then run **tuninetd** with the **-i** flag and **-f** for the filter (optional). It starts listening on the interface until network traffic is detected. After that, the command defined with **-c** will be triggered immediately
 
 ```sh
 # tuninetd -i tun0 -f "! host 1.2.3.4" -c /path/to/launcher -t 3600
 ```
->then "start" command from **tuninetd** will be:
+>based on this example, 'start' command will be:
 ```sh
 # /path/to/launcher start > /dev/null 2>&1
 ```
 
-After **-t** seconds of idle (no packets), **tuninetd** runs "stop" command and wait for activity again to start process over.
+After **-t** seconds of idle time (no packets), **tuninetd** runs the 'stop' command and waits for activity again.
 
-Since **tuninetd** based on **libpcap**, it's a good idea to play with filters using **tcpdump** first, which is based on the same library.
+Since **tuninetd** is based on **libpcap**, it's a good idea to test your filters using **tcpdump** first, as it uses the same library.
 
->**! Notice !** *Modern Linux distributions periodically send 'icmpv6 router solicitation' packets and other broadcast messages, which force tuninetd keep or change its state. So, using filters highly recommended to prevent unexpected behavior even on **tun** devices*
+>**! Notice !** *Modern Linux distributions periodically send 'ICMPv6 router solicitation' packets and other broadcast messages, which can force tuninetd to maintain or change its state. Therefore, using filters is highly recommended to prevent unexpected behavior, even on **tun** devices*
 
 #### 1.2. nflog sensor
 
-In general, behavior the same as pcap in terms of start/stop events. You could simply use netfilter nfgroup (*iptables **NFLOG** target*) to capture packets from, and "filter" already in nflog rule(s). No binding to certain network interface required. This is preferable mode since straightforward, lightweight and flexible
+In general, the behavior is the same as with pcap regarding start/stop events. You can simply use a Netfilter nfgroup (via the iptables **NFLOG** target) to capture packets; the 'filter' is then handled directly by your nflog rules. No binding to a specific network interface is required. This is the preferred mode, as it is straightforward, lightweight, and flexible.
 
 ```sh
 # tuninetd -n 1 -c /path/to/launcher
 ```
 #### 1.3. pcap + nflog
-You could use both sensors at the same time. In this case, event will be triggered from first sensor which receive a network packets. And yes, both sensors should be idle for **-t** seconds, before "stop" event fired
+Both sensors can be used simultaneously. In this case, the event will be triggered by the first sensor to receive network packets. Both sensors must be idle for **-t** seconds before the 'stop' event is fired.
 ```sh
 # tuninetd -i enp3s0 -f "arp and host 4.3.2.1" -n 1 -c /path/to/executable/toggletunnel.sh
 ```
@@ -45,7 +45,7 @@ If you're using Debian/Ubuntu, please check deb-packages folder. Run following w
 # dpkg -i tuninetd_ver_arch.deb
 # apt-get -f install
 ```
-To install from sources, please download src folder. In case Debian/Ubuntu, don't forget to install **build-essential**, **libpcap-dev** and **libnetfilter-log-dev** packages first.<br/>
+To install from source, please download the 'src' folder. For Debian or Ubuntu, ensure you install **build-essential**, **libpcap-dev**, and **libnetfilter-log-dev** packages first.<br/>
 ```sh
 # cd /download/folder/src
 # make
@@ -74,7 +74,7 @@ tuninetd -n <nflog-group> -c <path> [-a] [-d] [-i <ifname> [-f <filter>]] [-t <t
 ```
 
 #### 3.2. Signals
-SIGHUP  (-1): don't wait ttl, jump to "stop" event right now<br/>
+SIGHUP  (-1): don't wait ttl, jump to 'stop' event right now<br/>
 SIGUSR1 (-10): write to syslog current configuration and state
 
 ### 4. Examples
@@ -91,7 +91,7 @@ Check ```example``` folder to find some scripts.
 
 ### 5. Logging
 
-Here some syslog example with brief packet info which caused "start" event:
+Here some syslog example with brief packet info which caused 'start' event:
 ```
 Nov  1 21:32:14 router1 tuninetd: Success! Tuninetd has been started with PID: 23686
 Nov  1 21:32:14 router1 tuninetd: Binding to interface enp3s0
@@ -125,12 +125,9 @@ Nov  1 22:42:17 router1 tuninetd: - current status: up (ON), time since last cap
 ```
 
 ### 6. Tuntapd
-I've found **tuntapd** in this package, what this for? 
+I've found **tuntapd** in this package; what is this for?
 
-Well, if you're about to use tun/tap device with pcap sensor, you need some program binded to the interface, or pcap can't capture any packets. In some cases, network services release tun/tap when shutting down. Tuntapd could be used to keep device alive for pcap. Start tuntapd from your executable by "stop" event handler, after desired service go down and vise-versa.
+Well, if you intend to use a tun/tap device with a pcap sensor, you need a program bound to the interface, or pcap will not be able to capture any packets. In some cases, network services release (remove) the tun/tap device when shutting down. Tuntapd can be used to keep the device alive for pcap. You can start tuntapd from your executable's 'stop' event handler after the target service goes down, and vice versa.
 
 ### License
 MIT
-### Author
-Paul aka root4root \<root4root at gmail dot com><br/>
-**Any comments and suggestions are welcomed.**

@@ -1,6 +1,6 @@
 # tuninetd
 
-Network event emitter with **pcap** and **nflog** sensors
+Network event emitter (monitor, watchdog) with **pcap** and **nflog** sensors
 
 Could be used as a VPN dispatcher, by demand service handler, remote launcher etc...
 

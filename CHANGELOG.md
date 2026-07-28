@@ -1,5 +1,9 @@
 tuninetd changelog
 --------
+
+**1.5.1**
+* Fix NFLOG stuck on shutdown
+
 **1.5.0**
 * Stack recognition improvements
 * Log event packets to pcap file as well. Could be decoded later with tcpdump or Wireshark

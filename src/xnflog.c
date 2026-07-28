@@ -107,7 +107,7 @@ static void xnflog_start()
     pf_available -= nflog_bind_pf(h, AF_INET) < 0 ? 1 : 0;
     pf_available -= nflog_bind_pf(h, AF_INET6) < 0 ? 1 : 0;
     pf_available -= nflog_bind_pf(h, AF_BRIDGE) < 0 ? 1 : 0;
-   
+
     if (pf_available == 0) {
         message(ERROR, "NFLOG: can't bind to any protocol family (IPv4, IPv6 or BRIDGE)");
         exit(1);
@@ -132,9 +132,15 @@ static void xnflog_start()
 
 void xnflog_stop()
 {
-    message(INFO, "NFLOG: Shutting down...");
+    if (fd < 0) {
+        exit(0);
+    }
+
     shutdown(fd, SHUT_RD);
-    //close(fd);
+    fd = -1;
+
+    message(INFO, "NFLOG: Shutting down...");
+
     nflog_unbind_group(qh);
     nflog_unbind_pf(h, AF_INET);
     nflog_unbind_pf(h, AF_INET6);
@@ -162,6 +168,7 @@ void *nflog_x(void *x_void_ptr)
 
     message(WARNING, "NFLOG: shut down with code %i. Check errno.h for details", errno);
 
+    usleep(100000);
     xnflog_stop();
 
     return 0;

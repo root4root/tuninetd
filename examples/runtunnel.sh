@@ -2,7 +2,6 @@
 
 #This is just example of how executable script, which run from tuninetd, may looks like.
 #Accepts 'start' or 'stop' parameter.
-#Author: root4root@gmail.com
 
 controlFile='/var/run/ssh-myvpn-tunnel-control'
 remoteHost='1.2.3.4'
